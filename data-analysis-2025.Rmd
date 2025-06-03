@@ -18,3 +18,8 @@ library(aod)
 #Example of importing our first data set from a CSV file to a data frame.
 df <- read.csv("./foo/bar.csv")
 ```
+
+```{r}
+#Testing branching methods!
+```
+
