@@ -4,8 +4,8 @@ output: html_notebook
 ---
 
 ```{r}
-#Authors: [INSERT NAMES HERE]
-#Author Date: 
+#Authors: Ian and Cecilia
+#Author Date: 6/9
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
 #LAST UPDATED: 
