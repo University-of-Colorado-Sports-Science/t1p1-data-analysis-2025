@@ -39,8 +39,8 @@ This is a weekly schedule **per project**. The aim of this internship is to comp
 
 For the regularly scheduled check-ins, we will meet twice a week. Our first team meeting will take place on Tuesday, June 3, 2025 at 9:30am. Both teams and Sports Science staff will be a part of this meeting as a sort of orientation type meeting. After that, we will start our biweekly meetings using the following schedule:
 
-- Team 1: Mondays @ 9:30am, Thursdays @ 9:30am
-- Team 2: Mondays @ 10:00am, Thursdays @ 10:00am
+- Team 1: Mondays @ 9:15am, Thursdays @ 9:15am
+- Team 2: Mondays @ 9:45am, Thursdays @ 9:45am
 
 If your team needs or wants additional meetings, please reach out to us and we are happy to add times throughout the course of the internship!
 
