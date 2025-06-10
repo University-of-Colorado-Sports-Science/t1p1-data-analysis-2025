@@ -14,12 +14,72 @@ output: html_notebook
 library(tidyverse)
 library(readxl)
 library(aod)
+library(dplyr)
 
 #Example of importing our first data set from a CSV file to a data frame.
-df <- read.csv("./foo/bar.csv")
+# df <- read.csv("./foo/bar.csv")
 ```
 
 ```{r}
 #Testing branching methods!
 ```
+
+```{r}
+#Load in MBB - Statistic Tracking Report csv
+stats <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/MBB - Statistic Tracking Report.csv")
+
+# Load in ACWR - Kinexon MBB
+kinexon_ACWR <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/ACWR - Kinexon MBB.csv")
+```
+
+```{r clean stats dataset}
+# Remove columns where all data points are NA
+stats_clean <- stats |>
+  select(where(~ !all(is.na(.))))
+stats_clean
+
+
+# Check for redundant date columns
+all(stats_clean$Date == stats_clean$Date.Reverse)
+all(stats_clean$Date == stats_clean$Session.Date)
+all(stats_clean$Date.Reverse == stats_clean$Session.Date)
+
+
+# Remove redundant date columns
+stats_clean <- stats_clean |>
+  select(-c(Date.Reverse, Session.Date))
+stats_clean
+
+
+# Remove other irrelevant columns
+stats_clean <- stats_clean |>
+  select(-c(Buff.Plays, Month.with.Number, Sport))
+stats_clean
+```
+
+```{r clean kinexon_ACWR dataset}
+# Remove columns where all data points are NA
+kinexon_ACWR_clean <- kinexon_ACWR |>
+  select(where(~ !all(is.na(.))))
+kinexon_ACWR_clean
+
+
+# Check for redundant date columns
+all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Date.Reverse)
+all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Session.Date)
+all(kinexon_ACWR_clean$Date.Reverse == kinexon_ACWR_clean$Session.Date)
+
+
+# Remove redundant date columns
+kinexon_ACWR_clean <- kinexon_ACWR_clean |>
+  select(-c(Date.Reverse, Session.Date))
+kinexon_ACWR_clean
+
+
+# Remove other irrelevant columns
+kinexon_ACWR_clean <- kinexon_ACWR_clean |>
+  select(-c(Month.with.Number, Sport))
+kinexon_ACWR_clean
+```
+
 
