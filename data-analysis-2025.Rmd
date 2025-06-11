@@ -4,17 +4,18 @@ output: html_notebook
 ---
 
 ```{r}
-#Authors: Ian and Cecilia
-#Author Date: 6/9
+#Authors: Ian McElveen and Cecilia Gonzales
+#Author Date: 6/9/25
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
-#LAST UPDATED: 
+#LAST UPDATED: 6/11/2025
 
 #Including helpful libraries
 library(tidyverse)
 library(readxl)
 library(aod)
 library(dplyr)
+library(ggplot2)
 
 #Example of importing our first data set from a CSV file to a data frame.
 # df <- read.csv("./foo/bar.csv")
@@ -24,31 +25,46 @@ library(dplyr)
 #Testing branching methods!
 ```
 
-```{r}
+
+```{r load in datasets}
 #Load in MBB - Statistic Tracking Report csv
 stats <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/MBB - Statistic Tracking Report.csv")
 
 # Load in ACWR - Kinexon MBB
 kinexon_ACWR <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/ACWR - Kinexon MBB.csv")
+
+# Load in VALD - ForceDecks MBB csv
+vald_forceDecks <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - ForceDecks MBB.csv")
+
+kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/Kinexon Session MBB.csv")
 ```
+
+
+## Data Cleaning
+
 
 ```{r clean stats dataset}
 # Remove columns where all data points are NA
 stats_clean <- stats |>
   select(where(~ !all(is.na(.))))
-stats_clean
 
 
-# Check for redundant date columns
-all(stats_clean$Date == stats_clean$Date.Reverse)
-all(stats_clean$Date == stats_clean$Session.Date)
-all(stats_clean$Date.Reverse == stats_clean$Session.Date)
+# If all three date columns are equal, remove the redundant ones
+if (all(stats_clean$Date == stats_clean$Date.Reverse, na.rm = TRUE) &&
+    all(stats_clean$Date == stats_clean$Session.Date, na.rm = TRUE)) {
+  
+  stats_clean <- stats_clean |>
+    select(-c(Date.Reverse, Session.Date))
+}
 
 
-# Remove redundant date columns
-stats_clean <- stats_clean |>
-  select(-c(Date.Reverse, Session.Date))
-stats_clean
+# Convert if Date column is NOT already in Date format
+if (!inherits(stats_clean$Date, "Date")) {
+  stats_clean <- stats_clean %>%
+    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+}
+# Confirm it's now in Date format
+class(stats_clean$Date)
 
 
 # Remove other irrelevant columns
@@ -61,19 +77,24 @@ stats_clean
 # Remove columns where all data points are NA
 kinexon_ACWR_clean <- kinexon_ACWR |>
   select(where(~ !all(is.na(.))))
-kinexon_ACWR_clean
 
 
-# Check for redundant date columns
-all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Date.Reverse)
-all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Session.Date)
-all(kinexon_ACWR_clean$Date.Reverse == kinexon_ACWR_clean$Session.Date)
+# If all three date columns are equal, remove the redundant ones
+if (all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Date.Reverse, na.rm = TRUE) &&
+    all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Session.Date, na.rm = TRUE)) {
+  
+  kinexon_ACWR_clean <- kinexon_ACWR_clean |>
+    select(-c(Date.Reverse, Session.Date))
+}
 
 
-# Remove redundant date columns
-kinexon_ACWR_clean <- kinexon_ACWR_clean |>
-  select(-c(Date.Reverse, Session.Date))
-kinexon_ACWR_clean
+# Convert if Date column is NOT already in Date format
+if (!inherits(kinexon_ACWR_clean$Date, "Date")) {
+  kinexon_ACWR_clean <- kinexon_ACWR_clean %>%
+    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+}
+# Confirm it's now in Date format
+class(kinexon_ACWR_clean$Date)
 
 
 # Remove other irrelevant columns
@@ -82,4 +103,68 @@ kinexon_ACWR_clean <- kinexon_ACWR_clean |>
 kinexon_ACWR_clean
 ```
 
+```{r clean VALD - ForceDecks data}
+# Remove columns where all data points are NA
+vald_forceDecks_clean <- vald_forceDecks |>
+  select(where(~ !all(is.na(.))))
 
+
+# If all three date columns are equal, remove the redundant ones
+if (all(vald_forceDecks_clean$Date == vald_forceDecks_clean$Date.Reverse, na.rm = TRUE) &&
+    all(vald_forceDecks_clean$Date == vald_forceDecks_clean$Session.Date, na.rm = TRUE)) {
+  
+  vald_forceDecks_clean <- vald_forceDecks_clean |>
+    select(-c(Date.Reverse, Session.Date))
+}
+
+
+# Convert if Date column is NOT already in Date format
+if (!inherits(vald_forceDecks_clean$Date, "Date")) {
+  vald_forceDecks_clean <- vald_forceDecks_clean %>%
+    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+}
+# Confirm it's now in Date format
+class(vald_forceDecks_clean$Date)
+
+
+# Remove other irrelevant columns
+vald_forceDecks_clean <- vald_forceDecks_clean |>
+  select(-c(Month.with.Number, Sport.Position))
+vald_forceDecks_clean
+
+
+# Filter to only include data from this season
+vald_forceDecks_clean <- vald_forceDecks_clean |>
+  filter(Date >= as.Date("2024-6-01"))
+```
+
+```{r kinexon session mbb cleaning}
+# Remove columns where all data points are NA
+kinexon_session_clean <- kinexon_session |>
+  select(where(~ !all(is.na(.))))
+
+
+# Convert if Date column is NOT already in Date format
+if (!inherits(kinexon_session_clean$Date, "Date")) {
+  kinexon_session_clean <- kinexon_session_clean %>%
+    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+}
+# Confirm it's now in Date format
+class(kinexon_session_clean$Date)
+
+
+# Filter to only include data from this season
+kinexon_session_clean <- kinexon_session_clean |>
+  filter(Date >= as.Date("2024-6-01"))
+```
+
+## Recalculating Gameday Minus variables
+
+```{r GamedayMinus Recalculation}
+# Create new df with desired columns to make it easier to observe
+gameday_minus <- kinexon_session_clean |>
+  select(anon_id, Date, Type, Daily.Total.Accel.Load.Accum, Gameday.Minus.1.Acceleration.Load, Gameday.Minus.2.Acceleration.Load, Gameday.Minus.3.Acceleration.Load, Gameday.Minus.4.Acceleration.Load)
+gameday_minus
+
+
+```
