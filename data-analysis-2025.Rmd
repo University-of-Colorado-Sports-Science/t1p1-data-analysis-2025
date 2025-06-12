@@ -18,6 +18,7 @@ library(readxl)
 library(aod)
 library(dplyr)
 library(ggplot2)
+library(lubridate)
 
 #Example of importing our first data set from a CSV file to a data frame.
 
@@ -36,10 +37,10 @@ kinexon_ACWR <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/
 #Loading in VALD - Dynamo MBB
 VALD_dynamo <- read_csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - Dynamo MBB.csv")
 
-
 # Load in VALD - ForceDecks MBB csv
 VALD_ForceDecks <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - ForceDecks MBB.csv")
 
+# Load in Kinexon Session
 kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/Kinexon Session MBB.csv")
 ```
 
@@ -70,6 +71,22 @@ if (!inherits(stats_clean$Date, "Date")) {
 }
 # Confirm it's now in Date format
 class(stats_clean$Date)
+
+
+# Add more stats
+stats_clean <- stats_clean %>%
+  group_by(anon_id) %>%
+  mutate(Average.Rebounds = mean(na.omit(Rebounds)),
+         Average.Steals = mean(na.omit(Steals)),
+         Average.Assists = mean(na.omit(Assists)),
+         Average.Turnovers = mean(na.omit(Turnovers)),
+         Average.Points.Scored = mean(na.omit(Points.Scored)),
+         Median.Rebounds = median(na.omit(Rebounds)),
+         Median.Steals = median(na.omit(Steals)),
+         Median.Assists = median(na.omit(Assists)),
+         Median.Turnovers = median(na.omit(Turnovers)),
+         Median.Points.Scored = median(na.omit(Points.Scored))) %>%
+  ungroup()
 
 ```
 
@@ -136,41 +153,39 @@ ggplot(temp, aes(Date, Team.Force.Newtons)) +
   geom_line()
 ```
 
+```{r more clean the VALD_dynamo data set}
+#selecting important variables, removing rows with missing data, only selecting hand movements
+VALD_dynamo_clean <- VALD_dynamo %>%
+  filter(Body.Region == "Hand") %>%
+  mutate(Right.Side = ifelse(Repetition.Type.Laterality=="RightSide",1,0)) %>%
+  select(anon_id,	Date, Max.Force.Newtons, Avg.Force.Newtons, Max.Impulse.Newton.Seconds,  Max.Rate.Of.Force.Development.Newtons.Per.Second,	Avg.Rate.Of.Force.Development.Newtons.Per.Second,	Min.Time.To.Peak.Force.Seconds, Start.Offset.Seconds, Repetition.Duration.Seconds,	Repetition.Max.Force.Newtons,	Impulse.Newton.Seconds,	Rate.Of.Force.Development.Newtons.Per.Second,	Time.To.Peak.Force.Seconds,Right.Side) %>%
+  na.omit()
 
-```{r clean VALD - ForceDecks data}
-# Remove columns where all data points are NA
-VALD_ForceDecks_clean <- VALD_ForceDecks |>
-  select(where(~ !all(is.na(.))))
+#fixing the dates so we can use them to plot later
+VALD_dynamo_clean$Date <- as.Date(VALD_dynamo_clean$Date, '%m/%d/%Y')
 
+VALD_dynamo_clean
 
-# If all three date columns are equal, remove the redundant ones
-if (all(VALD_ForceDecks_clean$Date == VALD_ForceDecks_clean$Date.Reverse, na.rm = TRUE) &&
-    all(VALD_ForceDecks_clean$Date == VALD_ForceDecks_clean$Session.Date, na.rm = TRUE)) {
-  
-  VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
-    select(-c(Date.Reverse, Session.Date))
-}
+#This data set contains information from each individual hand in a strength test meaning that there are two measurements per day for each player. This makes it hard to understand in plots especially when plotted like time series data. For future reference, it might be useful to take an average of both sides or note that there is a difference in each hand and plot the left and rights sides separately.
 
-
-# Convert if Date column is NOT already in Date format
-if (!inherits(VALD_ForceDecks_clean$Date, "Date")) {
-  VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
-    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
-}
-# Confirm it's now in Date format
-class(VALD_ForceDecks_clean$Date)
+#### Note that you have to group on id and the date in order to get a valid average of both sides for a specific day for each individual player. 
+```
 
 
-# Select relevant columns
-VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
+```{r clean the ForceDecks dataset}
+VALD_ForceDecks_clean <- VALD_ForceDecks %>%
   select(where(~ !all(is.na(.)))) %>%
-  select(anon_id, Date, Position, Test.Type, Weight..kg., Trial,)
-
-
-# Filter to only include data from this season
-VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
-  filter(Date >= as.Date("2024-6-01"))
-
+  mutate(X=1:3384) %>%
+  filter(Test.Type == "DJ") %>%
+  select(X,anon_id, Date, Week, Position, Test.Type, Weight..kg., Trial, Flight.Time..s., Jump.Height..Flight.Time...cm., Eccentric.Concentric.Mean.Force.Ratio, Contact.Time..s., RSI..JH..Flight.Time..Contact.Time., RSI..Flight.Time.Contact.Time., Drop.Height..cm.)%>%
+  mutate(RSI..m.per.s. = (Jump.Height..Flight.Time...cm./100)/Contact.Time..s.,
+         Date = as.Date(Date, '%m/%d/%Y')) %>%
+  group_by(Date, anon_id) %>%
+  mutate(Weight..kg. = mean(na.omit(Weight..kg.)),
+         Average.RSI..m.per.s. = mean(RSI..m.per.s.)) %>%
+  ungroup() %>%
+  group_by(Date) %>%
+  mutate(Team.Average.RSI..m.per.s. = mean(na.omit(RSI..m.per.s.)))
 ```
 
 ```{r kinexon session mbb cleaning}
@@ -194,35 +209,174 @@ kinexon_session_clean <- kinexon_session_clean |>
 ```
 
 
-```{r clean the VALD_dynamo data set}
-#selecting important variables, removing rows with missing data, only selecting hand movements
-VALD_dynamo_clean <- VALD_dynamo %>%
-  filter(Body.Region == "Hand") %>%
-  mutate(Right.Side = ifelse(Repetition.Type.Laterality=="RightSide",1,0)) %>%
-  select(anon_id,	Date, Max.Force.Newtons, Avg.Force.Newtons, Max.Impulse.Newton.Seconds,  Max.Rate.Of.Force.Development.Newtons.Per.Second,	Avg.Rate.Of.Force.Development.Newtons.Per.Second,	Min.Time.To.Peak.Force.Seconds, Start.Offset.Seconds, Repetition.Duration.Seconds,	Repetition.Max.Force.Newtons,	Impulse.Newton.Seconds,	Rate.Of.Force.Development.Newtons.Per.Second,	Time.To.Peak.Force.Seconds,Right.Side) %>%
-  na.omit()
+## Recalculating Gameday Minus Columns
 
-#fixing the dates so we can use them to plot later
-VALD_dynamo_clean$Date <- as.Date(VALD_dynamo_clean$Date, '%m/%d/%Y')
 
-VALD_dynamo_clean
+```{r Gameday.Minus.N.Acceleration.Load}
+# Recalculating the Gameday.Minus.N.Acceleration.Load Columns
 
-#This data set contains information from each individual hand in a strength test meaning that there are two measurements per day for each player. This makes it hard to understand in plots especially when plotted like time series data. For future reference, it might be useful to take an average of both sides or note that there is a difference in each hand and plot the left and rights sides separately.
+# Create a df with relevant columns and add column specifying if that day was a game or not
+daily_load <- kinexon_session_clean |>
+  mutate(Game.Day = if_else(Type == "Game", 1, 0)) |>
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
+  select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) |>
+  arrange(anon_id, Date)
 
-#### Note that you have to group on id and the date in order to get a valid average of both sides for a specific day for each individual player. 
+# Get all game day dates per player as a lookup table
+game_days <- daily_load |>
+  filter(Game.Day == 1) |>
+  select(anon_id, Game.Date = Date)
+
+# Add column Day.Type for GD-1  - GD-4 and gamedays
+daily_load <- daily_load |>
+  left_join(game_days, by = "anon_id") |>
+  mutate(
+    Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
+    Day.Type = case_when(
+      Days.Until.Game == 1 ~ "GD-1",
+      Days.Until.Game == 2 ~ "GD-2",
+      Days.Until.Game == 3 ~ "GD-3",
+      Days.Until.Game == 4 ~ "GD-4",
+      Game.Day == 1 ~ "GameDay",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  filter(!is.na(Day.Type)) |>    # keep only rows within 4 days before game
+  select(-Game.Date, -Days.Until.Game)
+
+# Add columns for Gameday.Minus.N.Acceleration.Load
+Gameday_Minus <- daily_load |>
+  mutate(
+    Gameday.Minus.1.Acceleration.Load = if_else(Day.Type == "GD-1", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.2.Acceleration.Load = if_else(Day.Type == "GD-2", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.3.Acceleration.Load = if_else(Day.Type == "GD-3", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.4.Acceleration.Load = if_else(Day.Type == "GD-4", Daily.Total.Accel.Load.Accum, NA_real_),
+    GameDay.Acceleration.Load = if_else(Day.Type == "GameDay", Daily.Total.Accel.Load.Accum, NA_real_)
+  )
+
+# Delete duplicate rows
+Gameday_Minus <- Gameday_Minus |>
+  distinct()
+
 ```
-```{r}
-temp <- VALD_dynamo_clean %>%
-  group_by(Date) %>%
-  mutate(Team.Force.Newtons = mean(Max.Force.Newtons)) %>%
-  ungroup()
 
-ggplot(temp, aes(Date, Team.Force.Newtons)) +
-  geom_line()
+
+```{r Average.Gameday.Minus.N.Acceleration.Load}
+# Create columns for Average.Gameday.Minus.N.Acceleration.Load
+
+# Calculate and add columns for running averages
+Gameday_Minus <- Gameday_Minus |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  mutate(
+    # Cumulative count and sum for GD-1
+    cum_count_gd1 = cumsum(!is.na(Gameday.Minus.1.Acceleration.Load)),
+    cum_sum_gd1 = cumsum(replace_na(Gameday.Minus.1.Acceleration.Load, 0)),
+    Average.Gameday.Minus.1.Acceleration.Load = if_else(
+      cum_count_gd1 > 0,
+      cum_sum_gd1 / cum_count_gd1,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-2
+    cum_count_gd2 = cumsum(!is.na(Gameday.Minus.2.Acceleration.Load)),
+    cum_sum_gd2 = cumsum(replace_na(Gameday.Minus.2.Acceleration.Load, 0)),
+    Average.Gameday.Minus.2.Acceleration.Load = if_else(
+      cum_count_gd2 > 0,
+      cum_sum_gd2 / cum_count_gd2,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-3
+    cum_count_gd3 = cumsum(!is.na(Gameday.Minus.3.Acceleration.Load)),
+    cum_sum_gd3 = cumsum(replace_na(Gameday.Minus.3.Acceleration.Load, 0)),
+    Average.Gameday.Minus.3.Acceleration.Load = if_else(
+      cum_count_gd3 > 0,
+      cum_sum_gd3 / cum_count_gd3,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-4
+    cum_count_gd4 = cumsum(!is.na(Gameday.Minus.4.Acceleration.Load)),
+    cum_sum_gd4 = cumsum(replace_na(Gameday.Minus.4.Acceleration.Load, 0)),
+    Average.Gameday.Minus.4.Acceleration.Load = if_else(
+      cum_count_gd4 > 0,
+      cum_sum_gd4 / cum_count_gd4,
+      NA_real_
+    )
+  ) |>
+  ungroup() |>
+  select(-starts_with("cum_count_"), -starts_with("cum_sum_")) # clean up columns
+
 ```
 
-```{r clean the ForceDecks dataset}
-VALD_ForceDecks_clean <- VALD_ForceDecks %>%
-  select(where(~ !all(is.na(.)))) %>%
-  select(anon_id, Date, Position, Test.Type, Weight..kg., Trial,)
+```{r Average.Gameday.Acceleration.Load}
+# Calculate running averages of Gameday.Acceleration.Load and add column Average.Gameday.Acceleration.Load
+
+Gameday_Minus <- Gameday_Minus %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  mutate(
+    cum_count_gd = cumsum(!is.na(GameDay.Acceleration.Load)),
+    cum_sum_gd = cumsum(replace_na(GameDay.Acceleration.Load, 0)),
+    Average.GameDay.Acceleration.Load = if_else(
+      cum_count_gd > 0,
+      cum_sum_gd / cum_count_gd,
+      NA_real_
+    )
+  ) %>%
+  ungroup() %>%
+  select(-cum_count_gd, -cum_sum_gd) # clean up columns
+
 ```
+
+
+
+##Exploratory Analysis
+
+### Question 1
+#### Are changes in RSI related to team game performance?
+```{r Looking only at most recent season}
+temp <- VALD_ForceDecks_clean %>%
+  filter(Date >= as.Date("2024-09-20", '%Y-%m-%d'))
+
+team_mean <- mean(temp$Team.Average.RSI..m.per.s.)
+team_var <- (25/24)*var(temp$Team.Average.RSI..m.per.s.)
+
+ggplot(data = temp ,aes(Date, Team.Average.RSI..m.per.s.)) +
+  geom_line() +
+  geom_hline(yintercept = team_mean) +
+  geom_hline(yintercept = team_mean + sqrt(team_var), color="maroon") +
+  geom_hline(yintercept = team_mean - sqrt(team_var), color="maroon")
+
+cor(x = temp$X, y = temp$Team.Average.RSI..m.per.s., method = "kendall")
+cor(x = temp$X, y = temp$Team.Average.RSI..m.per.s., method = "spearman")
+```
+The plot above shows the average Team RSI per week throughout the 2024-2025 season. This plot shows that there are large variations in team's RSI values throughout the season but there does not seem to be any statistically significant underlying trend in the data. The lines in the plot represent the mean and one standard deviation from the mean throughout the season. As you can see, there is a lot of variability throughout the data. The patterns that appear though could potentially suggest an underlying ARIMA or other model for the data. 
+
+```{r Looking at }
+means <- unique(temp$Team.Average.RSI..m.per.s.)
+Dates <- unique(temp$Date)
+Change.Team.Average.RSI..m.per.s. <- rep(0, 25)
+
+for(i in 1:24){
+  Change.Team.Average.RSI..m.per.s.[i] = means[i] - means[i+1]
+}
+
+for(i in 1:25){
+  temp[temp$Date == Dates[i],19]<- Change.Team.Average.RSI..m.per.s.[i]
+}
+
+```
+
+### Question 2
+#### Are changes in RSI related to individual statistical game performance?
+
+
+
+### Question 3
+#### Is the previous week's load related to RSI?
+
+
+### Question 4
+#### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
