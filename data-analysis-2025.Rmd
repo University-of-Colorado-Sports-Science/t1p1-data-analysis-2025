@@ -3,9 +3,11 @@ title: "Data Analysis Notebook"
 output: html_notebook
 ---
 
+
 ```{r}
 #Authors: Ian McElveen and Cecilia Gonzales
 #Author Date: 6/9/25
+
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
 #LAST UPDATED: 6/12/2025
@@ -18,8 +20,10 @@ library(dplyr)
 library(ggplot2)
 
 #Example of importing our first data set from a CSV file to a data frame.
+
 # df <- read.csv("./foo/bar.csv")
 ```
+
 
 
 ```{r load in datasets}
@@ -32,6 +36,7 @@ kinexon_ACWR <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/
 #Loading in VALD - Dynamo MBB
 VALD_dynamo <- read_csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - Dynamo MBB.csv")
 
+
 # Load in VALD - ForceDecks MBB csv
 VALD_ForceDecks <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - ForceDecks MBB.csv")
 
@@ -40,6 +45,7 @@ kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compress
 
 
 ## Data Cleaning
+
 
 
 ```{r clean stats dataset}
@@ -64,12 +70,16 @@ if (!inherits(stats_clean$Date, "Date")) {
 }
 # Confirm it's now in Date format
 class(stats_clean$Date)
+
 ```
+
+
 
 ```{r clean kinexon_ACWR dataset}
 # Remove columns where all data points are NA
 kinexon_ACWR_clean <- kinexon_ACWR |>
   select(where(~ !all(is.na(.))))
+
 
 
 # If all three date columns are equal, remove the redundant ones
@@ -160,6 +170,7 @@ VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
 # Filter to only include data from this season
 VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
   filter(Date >= as.Date("2024-6-01"))
+
 ```
 
 ```{r kinexon session mbb cleaning}
@@ -182,3 +193,36 @@ kinexon_session_clean <- kinexon_session_clean |>
   filter(Date >= as.Date("2024-6-01"))
 ```
 
+
+```{r clean the VALD_dynamo data set}
+#selecting important variables, removing rows with missing data, only selecting hand movements
+VALD_dynamo_clean <- VALD_dynamo %>%
+  filter(Body.Region == "Hand") %>%
+  mutate(Right.Side = ifelse(Repetition.Type.Laterality=="RightSide",1,0)) %>%
+  select(anon_id,	Date, Max.Force.Newtons, Avg.Force.Newtons, Max.Impulse.Newton.Seconds,  Max.Rate.Of.Force.Development.Newtons.Per.Second,	Avg.Rate.Of.Force.Development.Newtons.Per.Second,	Min.Time.To.Peak.Force.Seconds, Start.Offset.Seconds, Repetition.Duration.Seconds,	Repetition.Max.Force.Newtons,	Impulse.Newton.Seconds,	Rate.Of.Force.Development.Newtons.Per.Second,	Time.To.Peak.Force.Seconds,Right.Side) %>%
+  na.omit()
+
+#fixing the dates so we can use them to plot later
+VALD_dynamo_clean$Date <- as.Date(VALD_dynamo_clean$Date, '%m/%d/%Y')
+
+VALD_dynamo_clean
+
+#This data set contains information from each individual hand in a strength test meaning that there are two measurements per day for each player. This makes it hard to understand in plots especially when plotted like time series data. For future reference, it might be useful to take an average of both sides or note that there is a difference in each hand and plot the left and rights sides separately.
+
+#### Note that you have to group on id and the date in order to get a valid average of both sides for a specific day for each individual player. 
+```
+```{r}
+temp <- VALD_dynamo_clean %>%
+  group_by(Date) %>%
+  mutate(Team.Force.Newtons = mean(Max.Force.Newtons)) %>%
+  ungroup()
+
+ggplot(temp, aes(Date, Team.Force.Newtons)) +
+  geom_line()
+```
+
+```{r clean the ForceDecks dataset}
+VALD_ForceDecks_clean <- VALD_ForceDecks %>%
+  select(where(~ !all(is.na(.)))) %>%
+  select(anon_id, Date, Position, Test.Type, Weight..kg., Trial,)
+```
