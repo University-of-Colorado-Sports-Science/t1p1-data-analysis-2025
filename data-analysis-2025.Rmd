@@ -3,9 +3,11 @@ title: "Data Analysis Notebook"
 output: html_notebook
 ---
 
+
 ```{r message = FALSE}
 #Authors: [Ian Mcelveen and Cecilia Gonzales]
 #Author Date: 
+
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
 #LAST UPDATED: 
@@ -14,6 +16,7 @@ output: html_notebook
 library(tidyverse)
 library(readxl)
 library(aod)
+library(dplyr)
 
 #Example of importing our first data set from a CSV file to a data frame.
 #df <- read.csv("./foo/bar.csv")
@@ -80,6 +83,7 @@ kinexon_ACWR_clean <- kinexon_ACWR_clean %>%
 kinexon_ACWR_clean$Date <- as.Date(kinexon_ACWR_clean$Date, '%m/%d/%Y')
 
 kinexon_ACWR_clean
+
 ```
 
 
