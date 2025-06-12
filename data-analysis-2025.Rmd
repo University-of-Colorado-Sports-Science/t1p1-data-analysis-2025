@@ -8,7 +8,7 @@ output: html_notebook
 #Author Date: 6/9/25
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
-#LAST UPDATED: 6/11/2025
+#LAST UPDATED: 6/12/2025
 
 #Including helpful libraries
 library(tidyverse)
@@ -21,10 +21,6 @@ library(ggplot2)
 # df <- read.csv("./foo/bar.csv")
 ```
 
-```{r}
-#Testing branching methods!
-```
-
 
 ```{r load in datasets}
 #Load in MBB - Statistic Tracking Report csv
@@ -33,8 +29,11 @@ stats <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactiv
 # Load in ACWR - Kinexon MBB
 kinexon_ACWR <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/ACWR - Kinexon MBB.csv")
 
+#Loading in VALD - Dynamo MBB
+VALD_dynamo <- read_csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - Dynamo MBB.csv")
+
 # Load in VALD - ForceDecks MBB csv
-vald_forceDecks <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - ForceDecks MBB.csv")
+VALD_ForceDecks <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/VALD - ForceDecks MBB.csv")
 
 kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compressed/Reactive Strength Index/Kinexon Session MBB.csv")
 ```
@@ -65,12 +64,6 @@ if (!inherits(stats_clean$Date, "Date")) {
 }
 # Confirm it's now in Date format
 class(stats_clean$Date)
-
-
-# Remove other irrelevant columns
-stats_clean <- stats_clean |>
-  select(-c(Buff.Plays, Month.with.Number, Sport))
-stats_clean
 ```
 
 ```{r clean kinexon_ACWR dataset}
@@ -97,44 +90,75 @@ if (!inherits(kinexon_ACWR_clean$Date, "Date")) {
 class(kinexon_ACWR_clean$Date)
 
 
-# Remove other irrelevant columns
-kinexon_ACWR_clean <- kinexon_ACWR_clean |>
-  select(-c(Month.with.Number, Sport))
-kinexon_ACWR_clean
+# Selecting only relevant columns
+kinexon_ACWR_clean <- kinexon_ACWR_clean %>%
+  select(anon_id, Date, Day.of.the.Week, Month, Year, Position, Session.Type, Session.Description, Practice.Classification, Last.7.Day.Acceleration.Load, Today.s.Acceleration.Load, Acceleration.Load.ACWR, Acceleration.Load.EWMA.ACWR, Acute.Total.Acceleration.Load, Acute.Total.Acceleration.Load.EWMA, Chronic.Total.Acceleration.Load, Chronic.Total.Acceleration.Load.EWMA, Total.Low.Acceleration.Load, Total.Medium.Acceleration.Load, Total.High.Acceleration.Load, Total.Very.High.Acceleration.Load, Last.7.Day.Total.Jump.Load, Today.s.Jump.Load, Total.Jump.Load.ACWR, Acute.Total.Jump.Load, Acute.Total.Jump.Load.EWMA, Chronic.Total.Jump.Load, Chronic.Total.Jump.Load.EWMA, Last.7.Day.Total.Minutes, Today.s.Minutes, Minutes.ACWR, Minutes.EWMA.ACWR, Acute.Minutes, Acute.Minutes.EWMA, Chronic.Minutes, Chronic.Minutes.EWMA, Total.Distance.EWMA.ACWR)
 ```
+
+```{r clean the VALD_dynamo data set}
+#selecting important variables, removing rows with missing data, only selecting hand movements
+VALD_dynamo_clean <- VALD_dynamo %>%
+  filter(Body.Region == "Hand") %>%
+  mutate(Right.Side = ifelse(Repetition.Type.Laterality=="RightSide",1,0)) %>%
+  select(anon_id,	Date, Max.Force.Newtons, Avg.Force.Newtons, Max.Impulse.Newton.Seconds,  Max.Rate.Of.Force.Development.Newtons.Per.Second,	Avg.Rate.Of.Force.Development.Newtons.Per.Second,	Min.Time.To.Peak.Force.Seconds, Start.Offset.Seconds, Repetition.Duration.Seconds,	Repetition.Max.Force.Newtons,	Impulse.Newton.Seconds,	Rate.Of.Force.Development.Newtons.Per.Second,	Time.To.Peak.Force.Seconds,Right.Side) %>%
+  na.omit()
+
+# Convert if Date column is NOT already in Date format
+if (!inherits(VALD_dynamo_clean$Date, "Date")) {
+  VALD_dynamo_clean<- VALD_dynamo_clean%>%
+    mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
+}
+# Confirm it's now in Date format
+class(VALD_dynamo_clean$Date)
+
+
+#This data set contains information from each individual hand in a strength test meaning that there are two measurements per day for each player. This makes it hard to understand in plots especially when plotted like time series data. For future reference, it might be useful to take an average of both sides or note that there is a difference in each hand and plot the left and rights sides separately.
+
+#### Note that you have to group on id and the date in order to get a valid average of both sides for a specific day for each individual player. 
+```
+```{r}
+temp <- VALD_dynamo_clean %>%
+  group_by(Date) %>%
+  mutate(Team.Force.Newtons = mean(Max.Force.Newtons)) %>%
+  ungroup()
+
+ggplot(temp, aes(Date, Team.Force.Newtons)) +
+  geom_line()
+```
+
 
 ```{r clean VALD - ForceDecks data}
 # Remove columns where all data points are NA
-vald_forceDecks_clean <- vald_forceDecks |>
+VALD_ForceDecks_clean <- VALD_ForceDecks |>
   select(where(~ !all(is.na(.))))
 
 
 # If all three date columns are equal, remove the redundant ones
-if (all(vald_forceDecks_clean$Date == vald_forceDecks_clean$Date.Reverse, na.rm = TRUE) &&
-    all(vald_forceDecks_clean$Date == vald_forceDecks_clean$Session.Date, na.rm = TRUE)) {
+if (all(VALD_ForceDecks_clean$Date == VALD_ForceDecks_clean$Date.Reverse, na.rm = TRUE) &&
+    all(VALD_ForceDecks_clean$Date == VALD_ForceDecks_clean$Session.Date, na.rm = TRUE)) {
   
-  vald_forceDecks_clean <- vald_forceDecks_clean |>
+  VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
     select(-c(Date.Reverse, Session.Date))
 }
 
 
 # Convert if Date column is NOT already in Date format
-if (!inherits(vald_forceDecks_clean$Date, "Date")) {
-  vald_forceDecks_clean <- vald_forceDecks_clean %>%
+if (!inherits(VALD_ForceDecks_clean$Date, "Date")) {
+  VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
     mutate(Date = as.Date(Date, format = "%m/%d/%Y"))
 }
 # Confirm it's now in Date format
-class(vald_forceDecks_clean$Date)
+class(VALD_ForceDecks_clean$Date)
 
 
-# Remove other irrelevant columns
-vald_forceDecks_clean <- vald_forceDecks_clean |>
-  select(-c(Month.with.Number, Sport.Position))
-vald_forceDecks_clean
+# Select relevant columns
+VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
+  select(where(~ !all(is.na(.)))) %>%
+  select(anon_id, Date, Position, Test.Type, Weight..kg., Trial,)
 
 
 # Filter to only include data from this season
-vald_forceDecks_clean <- vald_forceDecks_clean |>
+VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
   filter(Date >= as.Date("2024-6-01"))
 ```
 
@@ -158,13 +182,3 @@ kinexon_session_clean <- kinexon_session_clean |>
   filter(Date >= as.Date("2024-6-01"))
 ```
 
-## Recalculating Gameday Minus variables
-
-```{r GamedayMinus Recalculation}
-# Create new df with desired columns to make it easier to observe
-gameday_minus <- kinexon_session_clean |>
-  select(anon_id, Date, Type, Daily.Total.Accel.Load.Accum, Gameday.Minus.1.Acceleration.Load, Gameday.Minus.2.Acceleration.Load, Gameday.Minus.3.Acceleration.Load, Gameday.Minus.4.Acceleration.Load)
-gameday_minus
-
-
-```
