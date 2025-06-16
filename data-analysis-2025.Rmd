@@ -76,16 +76,16 @@ class(stats_clean$Date)
 # Add more stats
 stats_clean <- stats_clean %>%
   group_by(anon_id) %>%
-  mutate(Average.Rebounds = mean(na.omit(Rebounds)),
-         Average.Steals = mean(na.omit(Steals)),
-         Average.Assists = mean(na.omit(Assists)),
-         Average.Turnovers = mean(na.omit(Turnovers)),
-         Average.Points.Scored = mean(na.omit(Points.Scored)),
-         Median.Rebounds = median(na.omit(Rebounds)),
-         Median.Steals = median(na.omit(Steals)),
-         Median.Assists = median(na.omit(Assists)),
-         Median.Turnovers = median(na.omit(Turnovers)),
-         Median.Points.Scored = median(na.omit(Points.Scored))) %>%
+  mutate(Player.Average.Rebounds = mean(na.omit(Rebounds)),
+         Player.Average.Steals = mean(na.omit(Steals)),
+         Player.Average.Assists = mean(na.omit(Assists)),
+         Player.Average.Turnovers = mean(na.omit(Turnovers)),
+         Player.Average.Points.Scored = mean(na.omit(Points.Scored)),
+         Player.Median.Rebounds = median(na.omit(Rebounds)),
+         Player.Median.Steals = median(na.omit(Steals)),
+         Player.Median.Assists = median(na.omit(Assists)),
+         Player.Median.Turnovers = median(na.omit(Turnovers)),
+         Player.Median.Points.Scored = median(na.omit(Points.Scored))) %>%
   ungroup()
 
 ```
@@ -143,15 +143,7 @@ class(VALD_dynamo_clean$Date)
 
 #### Note that you have to group on id and the date in order to get a valid average of both sides for a specific day for each individual player. 
 ```
-```{r}
-temp <- VALD_dynamo_clean %>%
-  group_by(Date) %>%
-  mutate(Team.Force.Newtons = mean(Max.Force.Newtons)) %>%
-  ungroup()
 
-ggplot(temp, aes(Date, Team.Force.Newtons)) +
-  geom_line()
-```
 
 ```{r more clean the VALD_dynamo data set}
 #selecting important variables, removing rows with missing data, only selecting hand movements
@@ -226,6 +218,7 @@ daily_load <- kinexon_session_clean |>
 game_days <- daily_load |>
   filter(Game.Day == 1) |>
   select(anon_id, Game.Date = Date)
+    
 
 # Add column Day.Type for GD-1  - GD-4 and gamedays
 daily_load <- daily_load |>
@@ -336,39 +329,104 @@ Gameday_Minus <- Gameday_Minus %>%
 
 ### Question 1
 #### Are changes in RSI related to team game performance?
+
+##### Team Wins and Losses
 ```{r Looking only at most recent season}
-temp <- VALD_ForceDecks_clean %>%
+#filter ForceDecks data set into only the most recent season
+current_season <- VALD_ForceDecks_clean %>%
   filter(Date >= as.Date("2024-09-20", '%Y-%m-%d'))
 
-team_mean <- mean(temp$Team.Average.RSI..m.per.s.)
-team_var <- (25/24)*var(temp$Team.Average.RSI..m.per.s.)
+#looking at the average RSI as well as the adjusted variance
+team_mean <- mean(current_season$Team.Average.RSI..m.per.s.)
+team_var <- as.numeric(sample_mean_and_variance(current_season$Team.Average.RSI..m.per.s.)[2])
 
-ggplot(data = temp ,aes(Date, Team.Average.RSI..m.per.s.)) +
+#looking at the team average RSI over the course of the season, the middle horizontal line represents the mean and the gold lines represent one standard deviation away from the mean
+ggplot(data = current_season ,aes(Date, Team.Average.RSI..m.per.s.)) +
   geom_line() +
-  geom_hline(yintercept = team_mean) +
-  geom_hline(yintercept = team_mean + sqrt(team_var), color="maroon") +
-  geom_hline(yintercept = team_mean - sqrt(team_var), color="maroon")
+  geom_hline(yintercept = team_mean, linewidth = 1) +
+  geom_hline(yintercept = team_mean + sqrt(team_var), color="#CFB87C", linewidth = 1) +
+  geom_hline(yintercept = team_mean - sqrt(team_var), color="#CFB87C", linewidth = 1)
 
-cor(x = temp$X, y = temp$Team.Average.RSI..m.per.s., method = "kendall")
-cor(x = temp$X, y = temp$Team.Average.RSI..m.per.s., method = "spearman")
+#looking at the adjusted correlations of the team averages to see if there is any correlation with time
+cor(x = current_season$X, y = current_season$Team.Average.RSI..m.per.s., method = "kendall")
+cor(x = current_season$X, y = current_season$Team.Average.RSI..m.per.s., method = "spearman")
 ```
 The plot above shows the average Team RSI per week throughout the 2024-2025 season. This plot shows that there are large variations in team's RSI values throughout the season but there does not seem to be any statistically significant underlying trend in the data. The lines in the plot represent the mean and one standard deviation from the mean throughout the season. As you can see, there is a lot of variability throughout the data. The patterns that appear though could potentially suggest an underlying ARIMA or other model for the data. 
 
-```{r Looking at }
-means <- unique(temp$Team.Average.RSI..m.per.s.)
-Dates <- unique(temp$Date)
-Change.Team.Average.RSI..m.per.s. <- rep(0, 25)
+```{r Looking at team average RSI values throughout current season}
 
-for(i in 1:24){
-  Change.Team.Average.RSI..m.per.s.[i] = means[i] - means[i+1]
+#calculating mean RSI values for each day and attaching them to correct dates
+means <- unique(current_season$Team.Average.RSI..m.per.s.)
+Dates <- unique(current_season$Date)
+Change <- rep(0, 25)
+current_season$Change.Team.Average.RSI..m.per.s <- rep(NA, 661)
+
+#calculating the difference in RSI from the previous day and attaching as a new column in the current season data set
+for(i in 2:25){
+  Change[i] = means[i-1] - means[i]
 }
-
 for(i in 1:25){
-  temp[temp$Date == Dates[i],19]<- Change.Team.Average.RSI..m.per.s.[i]
+  current_season[current_season$Date == Dates[i],19]<- Change[i]
 }
+
+current_season <- current_season %>%
+  mutate(RSI.Increase = ifelse(Change.Team.Average.RSI..m.per.s > 0, 1, 0))
+```
+
+```{r Dataset for season wins and losses}
+Win <- c(1,1,1,1,1,0,1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1,1,0,0)
+All_Dates <- as.Date(c("2024-10-19","2024-11-4", "2024-11-8", "2024-11-13", "2024-11-17", "2024-11-25","2024-11-26", "2024-11-27", "2024-12-2", "2024-12-7", "2024-12-13", "2024-12-21", "2024-12-30", "2025-1-4", "2025-1-8", "2025-1-12", "2025-1-15", "2025-1-18", "2025-1-21", "2025-1-25", "2025-1-28", "2025-2-2", "2025-2-5", "2025-2-8", "2025-2-11", "2025-2-15", "2025-2-18", "2025-2-22", "2025-2-24", "2025-3-2", "2025-3-5", "2025-3-8", "2025-3-11","2025-3-12", "2025-3-13", "2025-4-1"),"%Y-%m-%d")
+
+Regular <- as.Date(c("2024-10-19","2024-11-4", "2024-11-8", "2024-11-13", "2024-11-17", "2024-12-2", "2024-12-7", "2024-12-13", "2024-12-21", "2024-12-30", "2025-1-4", "2025-1-8", "2025-1-12", "2025-1-15", "2025-1-18", "2025-1-21", "2025-1-25", "2025-1-28", "2025-2-2", "2025-2-5", "2025-2-8", "2025-2-11", "2025-2-15", "2025-2-18", "2025-2-22", "2025-2-24", "2025-3-2", "2025-3-5", "2025-3-8"),"%Y-%m-%d")
+
+Tournament <- as.Date(c("2024-11-25","2024-11-26", "2024-11-27"),"%Y-%m-%d")
+
+Post_Season <- as.Date(c("2025-3-11","2025-3-12", "2025-3-13", "2025-4-1"),"%Y-%m-%d")
+
+
+record <- data.frame(Date = All_Dates, Win = Win) %>%
+  mutate(Type = case_when(
+    Date %in% Regular ~ "Regular",
+    Date %in% Tournament ~ "Tournament",
+    Date %in% Post_Season ~ "Post-Season",
+    TRUE ~ "NA"
+  ))
+```
+
+```{r Plotting regular season games wins and losses with RSI values throughout the season}
+ggplot(current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
+  geom_line(linewidth = 0.75) +
+  geom_vline(xintercept = record$Date[record$Type == "Regular"], linewidth = 0.2, color = ifelse(record$Win[record$Type == "Regular"] == 1, "palegreen3", "red3"))
 
 ```
 
+```{r plotting non regular games with team average RSI values throughout the season}
+ggplot(current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
+  geom_line(linewidth = 0.75) +
+  geom_vline(xintercept = record$Date[record$Type %in% c("Tournament","Post-Season")], linewidth = 0.2, color = ifelse(record$Win[record$Type %in% c("Tournament", "Post-Season")] == 1, "palegreen3", "red3"))
+```
+
+```{r Plotting the changes in RSI throughout the season}
+ggplot(data = current_season, aes(x=Date, y=Team.Average.RSI..m.per.s.)) +
+  geom_line(aes(color = RSI.Increase))
+```
+
+```{r plotting the changes in RSI with wins and losses throughout the season}
+ggplot(data = current_season, aes(x=Date, y=Team.Average.RSI..m.per.s.)) +
+  geom_line(aes(color = RSI.Increase)) +
+  geom_vline(xintercept = record$Date[record$Win == 1], linewidth = 0.2, color = "palegreen3")
+
+ggplot(data = current_season, aes(x=Date, y=Team.Average.RSI..m.per.s.)) +
+  geom_line(aes(color = RSI.Increase), linewidth = 0.75) +
+  geom_vline(xintercept = record$Date[record$Win == 0], linewidth = 0.2, color = "red3")
+```
+
+##### Team Explosiveness Metrics
+```{r}
+ggplot(data = current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
+  geom_line() +
+  geom_vline(xintercept = )
+```
 ### Question 2
 #### Are changes in RSI related to individual statistical game performance?
 
