@@ -127,3 +127,27 @@ sample_mean_and_variance <- function(X){
   return(mean_and_var)
 }
 ```
+
+
+
+```{r}
+moving_average <- function(Xt, l){
+  moving_average <- rep(NA, length(Xt))
+  
+  for(i in 1:length(Xt)){
+    if(i-l<1){
+      temp <-c(Xt[1:(i+l)],Xt[(length(Xt)-(l-i)):(length(Xt))])
+      moving_average[i] <-sum(temp)/((2*l)+1)
+    }
+    else if(i+l > length(Xt)){
+      temp <- c(Xt[(i-l):(length(Xt))], Xt[1:((l+i)-length(Xt))])
+      moving_average[i] <- sum(temp)/((2*l)+1)
+    }
+    else{
+      temp <- Xt[(i-l): (i+l)]
+      moving_average[i] <- sum(temp)/((2*l)+1)
+    }
+  }
+  return(moving_average)
+}
+```
