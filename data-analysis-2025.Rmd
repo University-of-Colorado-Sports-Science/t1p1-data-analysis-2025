@@ -20,6 +20,7 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(boot)
+library(ROCR)
 
 #Example of importing our first data set from a CSV file to a data frame.
 
@@ -556,6 +557,7 @@ for(i in 1:30){
 Q1_data <- left_join(x=current_season, y=stats_clean, by=c("anon_id", "Game.Number"))
 Q1_data <- Q1_data %>%
   filter(Team.Good.Game %in% c(0,1))
+Q1_data <- Q1_data[13:540,]
 
 #set seed to make reproducible, splitting data into training and testing sets (75-25 split)
 set.seed(123)
@@ -587,27 +589,53 @@ Q1_test %>%
   summarize(CER = mean(na.omit(Team.Bad.Pred != Team.Good.Game)))
 
 ```
-##### Cross Validating the Team Models
-```{r}
+##### Cross Validating the Team Models and Calculating Sensitivity and Specificity Rates w/ ROC
+```{r Cross validating the good games model}
+set.seed(123)
 #model to be used
 model_good_team_cv <- glm(Team.Good.Game ~ Change.Team.Average.RSI..m.per.s., data=Q1_data, family="binomial")
 
-#cost function for CER
+#Making predictions for ROC curve
+Q1_data$Team.Good.Game.Pred <- predict(model_good_team_cv, type="response")
+
+#making ROC curve
+pred <- prediction(predictions = Q1_data$Team.Good.Game.Pred,
+                   labels = Q1_data$Team.Good.Game)
+perf <- performance(pred,measure='fnr',x.measure='fpr')
+plot(perf, colorize=TRUE)
+
+
+#cost function for CER in cross validation
 cost <- function(obs, pred){
-  mean((pred[1] <= 0.5) & obs==1 | (pred[1] > 0.5) & obs==0)
+  mean((pred <= 0.46) & obs==1 | (pred > 0.54) & obs==0)
 }
 
-#execute 10-fold CV algorithm
-set.seed(303)
-ten_cv <- cv.glm(data=Q1_data,glmfit=Q1_model_good_game,cost,K=10)
+#cross validating model
+good_team_cv <- cv.glm(data=Q1_data,glmfit=model_good_team_cv,cost,K=5)
 
 #extract average error
-ten_cv$delta[1]
+good_team_cv$delta[1]
+
+Q1_data$Team.Good.Game.Pred <- ifelse(predict(model_good_team_cv, type="response")>0.3,1,0)
+
+#looking at sensitivity and specificity
+table(Q1_data$Team.Good.Game.Pred, Q1_data$Team.Good.Game)
 ```
 
-```{r}
-team_good_cv <- cv.glmnet(x=as.matrix(Q1_data$Change.Team.Average.RSI..m.per.s.), y=as.matrix(Q1_data$Team.Good.Game), type.measure="class", nfolds=5)
+```{r Cross validating the bad games model}
+set.seed(303)
+model_bad_team_cv <- glm(Team.Bad.Game ~ Change.Team.Average.RSI..m.per.s., data=Q1_data, family="binomial")
+
+bad_team_cv <- cv.glm(data=Q1_data,glmfit=model_bad_team_cv,cost,K=5)
+
+#extract average error
+bad_team_cv$delta[1]
+
+Q1_data$Team.Bad.Game.Pred <- ifelse(predict(model_bad_team_cv, type="response")>0.5,1,0)
+
+table(Q1_data$Team.Bad.Game.Pred, Q1_data$Team.Bad.Game)
 ```
+
 
 ## Question 2
 ### Are changes in RSI related to individual statistical game performance?
