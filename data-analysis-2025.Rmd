@@ -590,7 +590,7 @@ Q1_test %>%
 ##### Cross Validating the Team Models
 ```{r}
 cost <- function(obs, pred){
-  mean((pred[1] <= 0.5) & obs==1 | (pred > 0.5) & obs==0)
+  mean((pred[1] <= 0.5) & obs==1 | (pred[1] > 0.5) & obs==0)
 }
 
 #execute 10-fold CV algorithm
