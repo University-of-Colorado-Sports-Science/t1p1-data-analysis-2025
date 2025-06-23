@@ -208,133 +208,6 @@ kinexon_session_clean <- kinexon_session_clean |>
 ```
 
 
-## Recalculating Gameday Minus Columns
-
-
-```{r Gameday.Minus.N.Acceleration.Load}
-# Recalculating the Gameday.Minus.N.Acceleration.Load Columns
-
-# Create a df with relevant columns and add column specifying if that day was a game or not
-daily_load <- kinexon_session_clean |>
-  mutate(Game.Day = if_else(Type == "Game", 1, 0)) |>
-  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
-  select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) |>
-  arrange(anon_id, Date)
-
-# Get all game day dates per player as a lookup table
-game_days <- daily_load |>
-  filter(Game.Day == 1) |>
-  select(anon_id, Game.Date = Date)
-    
-
-# Add column Day.Type for GD-1 - GD-4 and gamedays
-daily_load <- daily_load |>
-  left_join(game_days, by = "anon_id") |>
-  mutate(
-    Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
-    Day.Type = case_when(
-      Days.Until.Game == 1 ~ "GD-1",
-      Days.Until.Game == 2 ~ "GD-2",
-      Days.Until.Game == 3 ~ "GD-3",
-      Days.Until.Game == 4 ~ "GD-4",
-      Game.Day == 1 ~ "GameDay",
-      TRUE ~ NA_character_
-    )
-  ) |>
-  filter(!is.na(Day.Type)) |>    # keep only rows within 4 days before game
-  select(-Game.Date, -Days.Until.Game)
-
-# Add columns for Gameday.Minus.N.Acceleration.Load
-Gameday_Minus <- daily_load |>
-  mutate(
-    Gameday.Minus.1.Acceleration.Load = if_else(Day.Type == "GD-1", Daily.Total.Accel.Load.Accum, NA_real_),
-    Gameday.Minus.2.Acceleration.Load = if_else(Day.Type == "GD-2", Daily.Total.Accel.Load.Accum, NA_real_),
-    Gameday.Minus.3.Acceleration.Load = if_else(Day.Type == "GD-3", Daily.Total.Accel.Load.Accum, NA_real_),
-    Gameday.Minus.4.Acceleration.Load = if_else(Day.Type == "GD-4", Daily.Total.Accel.Load.Accum, NA_real_),
-    GameDay.Acceleration.Load = if_else(Day.Type == "GameDay", Daily.Total.Accel.Load.Accum, NA_real_)
-  )
-
-# Delete duplicate rows
-Gameday_Minus <- Gameday_Minus |>
-  distinct()
-
-```
-
-
-
-```{r Average.Gameday.Minus.N.Acceleration.Load}
-# Create columns for Average.Gameday.Minus.N.Acceleration.Load
-
-# Calculate and add columns for running averages
-Gameday_Minus <- Gameday_Minus |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  mutate(
-    # Cumulative count and sum for GD-1
-    cum_count_gd1 = cumsum(!is.na(Gameday.Minus.1.Acceleration.Load)),
-    cum_sum_gd1 = cumsum(replace_na(Gameday.Minus.1.Acceleration.Load, 0)),
-    Average.Gameday.Minus.1.Acceleration.Load = if_else(
-      cum_count_gd1 > 0,
-      cum_sum_gd1 / cum_count_gd1,
-      NA_real_
-    ),
-    
-    # Cumulative count and sum for GD-2
-    cum_count_gd2 = cumsum(!is.na(Gameday.Minus.2.Acceleration.Load)),
-    cum_sum_gd2 = cumsum(replace_na(Gameday.Minus.2.Acceleration.Load, 0)),
-    Average.Gameday.Minus.2.Acceleration.Load = if_else(
-      cum_count_gd2 > 0,
-      cum_sum_gd2 / cum_count_gd2,
-      NA_real_
-    ),
-    
-    # Cumulative count and sum for GD-3
-    cum_count_gd3 = cumsum(!is.na(Gameday.Minus.3.Acceleration.Load)),
-    cum_sum_gd3 = cumsum(replace_na(Gameday.Minus.3.Acceleration.Load, 0)),
-    Average.Gameday.Minus.3.Acceleration.Load = if_else(
-      cum_count_gd3 > 0,
-      cum_sum_gd3 / cum_count_gd3,
-      NA_real_
-    ),
-    
-    # Cumulative count and sum for GD-4
-    cum_count_gd4 = cumsum(!is.na(Gameday.Minus.4.Acceleration.Load)),
-    cum_sum_gd4 = cumsum(replace_na(Gameday.Minus.4.Acceleration.Load, 0)),
-    Average.Gameday.Minus.4.Acceleration.Load = if_else(
-      cum_count_gd4 > 0,
-      cum_sum_gd4 / cum_count_gd4,
-      NA_real_
-    )
-  ) |>
-  ungroup() |>
-  select(-starts_with("cum_count_"), -starts_with("cum_sum_")) # clean up columns
-
-```
-
-
-
-```{r Average.Gameday.Acceleration.Load}
-# Calculate running averages of Gameday.Acceleration.Load and add column Average.Gameday.Acceleration.Load
-
-Gameday_Minus <- Gameday_Minus %>%
-  arrange(anon_id, Date) %>%
-  group_by(anon_id) %>%
-  mutate(
-    cum_count_gd = cumsum(!is.na(GameDay.Acceleration.Load)),
-    cum_sum_gd = cumsum(replace_na(GameDay.Acceleration.Load, 0)),
-    Average.GameDay.Acceleration.Load = if_else(
-      cum_count_gd > 0,
-      cum_sum_gd / cum_count_gd,
-      NA_real_
-    )
-  ) %>%
-  ungroup() %>%
-  select(-cum_count_gd, -cum_sum_gd) # clean up columns
-
-```
-
-
-
 ##Analysis
 
 ## Question 1
@@ -727,5 +600,224 @@ Q1_test %>%
 ### Is the previous week's load related to RSI?
 
 
-## Question 4
-### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
+
+## Recalculating Gameday Minus Columns
+
+```{r Gameday.Minus.N.Acceleration.Load}
+# Recalculating the Gameday.Minus.N.Acceleration.Load Columns
+
+# Create a df with relevant columns and add column specifying if that day was a game or not
+daily_load <- kinexon_session_clean |>
+  mutate(Game.Day = if_else(Type == "Game", 1, 0)) |>
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
+  select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) |>
+  arrange(anon_id, Date)
+
+# Get all game day dates per player as a lookup table
+game_days <- daily_load |>
+  filter(Game.Day == 1) |>
+  select(anon_id, Game.Date = Date)
+    
+
+# Add column Day.Type for GD-1 - GD-4 and gamedays
+daily_load <- daily_load |>
+  left_join(game_days, by = "anon_id") |>
+  mutate(
+    Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
+    Day.Type = case_when(
+      Days.Until.Game == 1 ~ "GD-1",
+      Days.Until.Game == 2 ~ "GD-2",
+      Days.Until.Game == 3 ~ "GD-3",
+      Days.Until.Game == 4 ~ "GD-4",
+      Game.Day == 1 ~ "GameDay",
+      TRUE ~ NA_character_
+    )
+  ) |>
+  filter(!is.na(Day.Type)) |>    # keep only rows within 4 days before game
+  select(-Game.Date, -Days.Until.Game)
+
+# Add columns for Gameday.Minus.N.Acceleration.Load
+Gameday_Minus <- daily_load |>
+  mutate(
+    Gameday.Minus.1.Acceleration.Load = if_else(Day.Type == "GD-1", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.2.Acceleration.Load = if_else(Day.Type == "GD-2", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.3.Acceleration.Load = if_else(Day.Type == "GD-3", Daily.Total.Accel.Load.Accum, NA_real_),
+    Gameday.Minus.4.Acceleration.Load = if_else(Day.Type == "GD-4", Daily.Total.Accel.Load.Accum, NA_real_),
+    GameDay.Acceleration.Load = if_else(Day.Type == "GameDay", Daily.Total.Accel.Load.Accum, NA_real_)
+  )
+
+# Delete duplicate rows
+Gameday_Minus <- Gameday_Minus |>
+  distinct()
+
+```
+
+
+```{r Average.Gameday.Minus.N.Acceleration.Load}
+# Create columns for Average.Gameday.Minus.N.Acceleration.Load
+
+# Calculate and add columns for running averages
+Gameday_Minus <- Gameday_Minus |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  mutate(
+    # Cumulative count and sum for GD-1
+    cum_count_gd1 = cumsum(!is.na(Gameday.Minus.1.Acceleration.Load)),
+    cum_sum_gd1 = cumsum(replace_na(Gameday.Minus.1.Acceleration.Load, 0)),
+    Average.Gameday.Minus.1.Acceleration.Load = if_else(
+      cum_count_gd1 > 0,
+      cum_sum_gd1 / cum_count_gd1,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-2
+    cum_count_gd2 = cumsum(!is.na(Gameday.Minus.2.Acceleration.Load)),
+    cum_sum_gd2 = cumsum(replace_na(Gameday.Minus.2.Acceleration.Load, 0)),
+    Average.Gameday.Minus.2.Acceleration.Load = if_else(
+      cum_count_gd2 > 0,
+      cum_sum_gd2 / cum_count_gd2,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-3
+    cum_count_gd3 = cumsum(!is.na(Gameday.Minus.3.Acceleration.Load)),
+    cum_sum_gd3 = cumsum(replace_na(Gameday.Minus.3.Acceleration.Load, 0)),
+    Average.Gameday.Minus.3.Acceleration.Load = if_else(
+      cum_count_gd3 > 0,
+      cum_sum_gd3 / cum_count_gd3,
+      NA_real_
+    ),
+    
+    # Cumulative count and sum for GD-4
+    cum_count_gd4 = cumsum(!is.na(Gameday.Minus.4.Acceleration.Load)),
+    cum_sum_gd4 = cumsum(replace_na(Gameday.Minus.4.Acceleration.Load, 0)),
+    Average.Gameday.Minus.4.Acceleration.Load = if_else(
+      cum_count_gd4 > 0,
+      cum_sum_gd4 / cum_count_gd4,
+      NA_real_
+    )
+  ) |>
+  ungroup() |>
+  select(-starts_with("cum_count_"), -starts_with("cum_sum_")) # clean up columns
+
+```
+
+
+```{r Average.Gameday.Acceleration.Load}
+# Calculate running averages of Gameday.Acceleration.Load and add column Average.Gameday.Acceleration.Load
+
+Gameday_Minus <- Gameday_Minus |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  mutate(
+    cum_count_gd = cumsum(!is.na(GameDay.Acceleration.Load)),
+    cum_sum_gd = cumsum(replace_na(GameDay.Acceleration.Load, 0)),
+    Average.GameDay.Acceleration.Load = if_else(
+      cum_count_gd > 0,
+      cum_sum_gd / cum_count_gd,
+      NA_real_
+    )
+  ) |>
+  ungroup() |>
+  select(-cum_count_gd, -cum_sum_gd) # clean up columns
+
+```
+
+
+```{r Load vs. RSI}
+# Filter to only have data from this season
+RSI <- VALD_ForceDecks_clean |>
+  filter(Date >= as.Date("2024-10-10")) |>
+  select(anon_id, Date, RSI..m.per.s., Trial) |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id, Date) |>
+  mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) |>
+  ungroup()
+
+
+# Create load dataset containing columns relevant to load
+load <- kinexon_session_clean |>
+  filter(Date >= as.Date("2024-10-10")) |>
+  select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) |>
+  filter(!is.na(Daily.Total.Accel.Load.Accum))
+
+
+# Look into Daily Acceleration Load for one athlete
+id_40_load <- load |>
+  filter(anon_id == "ID_40")
+
+ggplot(data = id_40_load, aes(Date, Daily.Total.Accel.Load.Accum)) +
+  geom_point() +
+  labs(title = "ID_40 Daily Acceleration Load")
+```
+
+```{r Prior Weeks Load}
+library(purrr)
+
+# Calculate the average and total load in the last seven days
+rolling_7day <- load |>
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  group_split() |>
+  map_dfr(~{
+    athlete_data <- .
+    map_dfr(seq_len(nrow(athlete_data)), function(i) {
+      current_row <- athlete_data[i, ]
+      past_week <- athlete_data |>
+        filter(Date < current_row$Date & Date >= current_row$Date - days(7))
+      
+      current_row |>
+        mutate(
+          Avg_Load_Last_7_Days = mean(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Total_Load_Last_7_Days = sum(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Days_Used = nrow(past_week)
+        )
+    })
+  })
+
+```
+
+```{r merge}
+RSI_daily_avg <- RSI |>
+  distinct(anon_id, Date, Daily.Avg.RSI..m.per.s)
+
+# merge RSI and load datasets
+load_and_RSI <- RSI_daily_avg |>
+  left_join(
+    rolling_7day,
+    by = "anon_id",
+    relationship = "many-to-many"
+  ) |>
+  filter(Date.y < Date.x & Date.y >= Date.x - days(7)) |>
+  group_by(anon_id, Date.x) |>
+  slice_max(Date.y, n = 1) |>  # Keep the most recent load data before RSI
+  ungroup() |>
+  rename(
+    RSI_Date = Date.x,
+    Load_Date = Date.y,
+    RSI = Daily.Avg.RSI..m.per.s
+  )
+
+# Correlation tests
+cor.test(load_and_RSI$RSI, load_and_RSI$Avg_Load_Last_7_Days)
+cor.test(load_and_RSI$RSI, load_and_RSI$Total_Load_Last_7_Days)
+
+
+# Mixed effect model
+library(lme4)
+load_vs_RSI_model <- lmer(RSI ~ Avg_Load_Last_7_Days + (1 | anon_id), data = load_and_RSI)
+summary(load_vs_RSI_model)
+
+# Last week's load vs. RSI
+ggplot(load_and_RSI, aes(x = Avg_Load_Last_7_Days, y = RSI)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(title = "Relationship Between Previous Week's Load and RSI")
+
+
+## When creating rolling 7 day, I think I did not include that day's load as apart of the calculation. Look into changing this so it is included.
+```
+
+### Question 4
+#### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
