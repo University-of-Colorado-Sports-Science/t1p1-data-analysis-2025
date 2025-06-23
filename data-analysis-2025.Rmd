@@ -564,7 +564,7 @@ Q1_train <- Q1_data[rows,]
 Q1_test <- Q1_data[-rows,]
 
 #model to predict whether game was a good game or not based on team average RSI increase leading up to that game
-Q1_model_good_game <- glm(Team.Good.Game~Change.Team.Average.RSI..m.per.s., data=Q1_data, family="gaussian")
+Q1_model_good_game <- glm(Team.Good.Game~Change.Team.Average.RSI..m.per.s., data=Q1_train, family="binomial")
 summary(Q1_model_good_game)
 
 #using the model above to make prediction on whether it was a good game or not and calculating CER (using 0.5 as threshold, may adjust later)
@@ -589,6 +589,10 @@ Q1_test %>%
 ```
 ##### Cross Validating the Team Models
 ```{r}
+#model to be used
+model_good_team_cv <- glm(Team.Good.Game ~ Change.Team.Average.RSI..m.per.s., data=Q1_data, family="binomial")
+
+#cost function for CER
 cost <- function(obs, pred){
   mean((pred[1] <= 0.5) & obs==1 | (pred[1] > 0.5) & obs==0)
 }
