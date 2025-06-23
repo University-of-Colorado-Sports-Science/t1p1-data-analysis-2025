@@ -104,7 +104,8 @@ stats_clean <- stats_clean %>%
          Player.Bad.Game = ifelse(Rebounds < Player.Median.Rebounds & Steals < Player.Median.Steals & Assists < Player.Median.Assists,1,0),
          Team.Good.Game = ifelse(Team.Rebounds >= median(Team.Rebounds) & Team.Steals >= median(Team.Steals) & Team.Assists >= median(Team.Assists),1,0),
          Team.Bad.Game = ifelse(Team.Rebounds < median(Team.Rebounds) & Team.Steals < median(Team.Steals) & Team.Assists < median(Team.Assists),1,0)) %>%
-  select(-c(Sport, Day.of.Week, Month, Month.with.Number, Year, Number.of.Competitions.Won, Total.Daily.Competitions.Available, Total.Competitions.Won, Total.Game.Minutes, Offensive.Rebounds, Defensive.Rebounds, Buff.Plays, Percentage.Daily.of.Competitions.Won))
+  select(-c(Sport, Day.of.Week, Month, Month.with.Number, Year, Number.of.Competitions.Won, Total.Daily.Competitions.Available, Total.Competitions.Won, Total.Game.Minutes, Offensive.Rebounds, Defensive.Rebounds, Buff.Plays, Percentage.Daily.of.Competitions.Won)) %>%
+  filter(!(anon_id %in% c("ID_10", "ID_14", "ID_15", "ID_18", "ID_54", "ID_64")))
 
 ```
 
@@ -333,9 +334,10 @@ Gameday_Minus <- Gameday_Minus %>%
 
 ##### Team Wins and Losses
 ```{r Looking only at most recent season}
-#filter ForceDecks data set into only the most recent season
+#filter ForceDecks data set into only the most recent season and only players that played in most of the games
 current_season <- VALD_ForceDecks_clean %>%
-  filter(Date >= as.Date("2024-09-20", '%Y-%m-%d'))
+  filter(Date >= as.Date("2024-09-20", '%Y-%m-%d')) %>%
+  filter(!(anon_id %in% c("ID_10", "ID_14", "ID_15", "ID_18", "ID_54", "ID_64")))
 
 #looking at the average RSI as well as the adjusted variance
 team_mean <- mean(current_season$Team.Average.RSI..m.per.s.)
@@ -361,7 +363,7 @@ Team.means <- unique(current_season$Team.Average.RSI..m.per.s.)
 Dates <- unique(current_season$Date)
 IDs <- unique(current_season$anon_id)
 Team.Change <- rep(0, 25)
-current_season$Change.Team.Average.RSI..m.per.s. <- rep(NA, 661)
+current_season$Change.Team.Average.RSI..m.per.s. <- rep(NA, 580)
 
 #calculating the difference in RSI from the previous measurement and attaching as a new column in the current season data set
 for(i in 2:25){
@@ -375,9 +377,9 @@ current_season <- current_season %>%
 
 
 #calculating the difference in RSI from the previous measurement for each player and attaching as a new column in the current season data set
-current_season$Change.Player.Average.RSI..m.per.s. <- rep(0,661) #making new column
+current_season$Change.Player.Average.RSI..m.per.s. <- rep(0,580) #making new column
 
-for(i in 1:16){ #cycle through players, calculate difference from last measurement
+for(i in 1:11){ #cycle through players, calculate difference from last measurement
   Dates <- unique(current_season[current_season$anon_id == IDs[i],]$Date)
   Player.Means <- unique(current_season[current_season$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.)
   Player.Change <- rep(0,length(Player.Means))
@@ -441,7 +443,7 @@ ggplot(data = current_season, aes(x=Date, y=Change.Team.Average.RSI..m.per.s.)) 
   geom_hline(yintercept = 0)
 
 
-#plotting the changes in team average RSI throughout the season with important games and their outcomes
+#plotting the changes in team average RSI throughout the season with notably good or bad games
 ggplot(data = current_season, aes(x=Date, y=Change.Team.Average.RSI..m.per.s.)) +
   geom_point() +
   geom_hline(yintercept = 0) +
@@ -451,13 +453,15 @@ ggplot(data = current_season, aes(x=Date, y=Change.Team.Average.RSI..m.per.s.)) 
 This plot shows the change in team average RSI measurements throughout the season. Each data point represents how much the average RSI changed from the previous measurement. This plot helps to make sense of how the RSI of the team changed throughout the season. We can see that while increases were more frequent, they were smaller than the drops in RSI that occurred throughout the season. 
 With this though, we can see that there is potentially a relationship between changes in RSI and in team game performance. This is because visually, it seems that games where the team had a "good" game tend to have an increase in RSI measured right before the game and games that are "bad" tend to have a decrease in RSI right before the game or a less dramatic increase in RSI than games that are "good". 
 
+
+###### Maybe Delete
 ```{r plotting the changes in RSI with wins and losses throughout the season}
 ggplot(data = current_season, aes(x=Date, y=Team.Average.RSI..m.per.s.)) +
-  geom_line(aes(color = RSI.Increase)) +
+  geom_line(aes(color = Team.RSI.Increase)) +
   geom_vline(xintercept = record$Date[record$Win == 1], linewidth = 0.2, color = "palegreen3")
 
 ggplot(data = current_season, aes(x=Date, y=Team.Average.RSI..m.per.s.)) +
-  geom_line(aes(color = RSI.Increase), linewidth = 0.75) +
+  geom_line(aes(color = Team.RSI.Increase), linewidth = 0.75) +
   geom_vline(xintercept = record$Date[record$Win == 0], linewidth = 0.2, color = "red3")
 ```
 
@@ -500,9 +504,9 @@ ggplot(data = current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
 ma <- moving_average(unique(current_season$Team.Average.RSI..m.per.s.), 1)
 #x53 <- five_three_x(unique(current_season$Team.Average.RSI..m.per.s.))
 
-#current_season$Team.Average.RSI.Smooth <- rep(NA,661)
-current_season$Team.Average.RSI.Moving.Average <- rep(NA, 661)
-#current_season$Team.Average.RSI.53X <- rep(NA, 661)
+#current_season$Team.Average.RSI.Smooth <- rep(NA,580)
+current_season$Team.Average.RSI.Moving.Average <- rep(NA, 580)
+#current_season$Team.Average.RSI.53X <- rep(NA, 580)
 
 for(i in 1:25){
   #current_season[current_season$Date == Dates[i],21]<- smooth[i]
@@ -516,23 +520,64 @@ geom_vline(xintercept = stats_clean$Date[stats_clean$Team.Good.Game ==1 | stats_
 ```
 
 ###### Assessing effectiveness of RSI as predictor of in game success
-```{r}
+```{r Grouping days together based on which games they were leading up to}
+#getting dates that had games on them
 Game.Days <- unique(stats_clean$Date)
+#numbering which game in the season it was
 Game.Number <- seq(30, 1, -1)
-stats_clean$Game.Number <- rep(NA, 326)
-current_season$Game.Number <- rep(NA, 661)
+#making empty columns to be filled with game number
+stats_clean$Game.Number <- rep(NA, 315)
+current_season$Game.Number <- rep(NA, 580)
 
+#going through games data set and labeling which game was which throughout the season
+## first, second, third, ... 30th
 for(i in 1:30){
   stats_clean[stats_clean$Date == Game.Days[i],]$Game.Number <- Game.Number[i]
 }
 
+#going through practices data set and labeling the closest game that the practice was before
+## will be used for grouping games together later
 for(i in 1:30){
   current_season[current_season$Date < Game.Days[i],]$Game.Number = 31-i
 }
 ```
 
+```{r making model to predict whether it was a good team game or not}
+#making one dataset with everything together to assess effectiveness of RSI as a predictor
+## grouping by the game played or led up to and the player id
+Q1_data <- left_join(x=current_season, y=stats_clean, by=c("anon_id", "Game.Number"))
+
+#set seed to make reproducible, splitting data into training and testing sets (75-25 split)
+set.seed(123)
+rows <- sample(1:nrow(Q1_data), nrow(Q1_data)*0.75, replace=FALSE)
+Q1_train <- Q1_data[rows,]
+Q1_test <- Q1_data[-rows,]
+
+#model to predict whether game was a good game or not based on team average RSI increase leading up to that game
+Q1_model_good_game <- glm(Team.Good.Game~Change.Team.Average.RSI..m.per.s., data=Q1_train, family="binomial")
+summary(Q1_model_good_game)
+
+#using the model above to make prediction on whether it was a good game or not and calculating CER (using 0.5 as threshold, may adjust later)
+Q1_test$Team.Good.Pred <- ifelse(predict.glm(Q1_model_good_game, Q1_test, type="response") >0.5,1,0)
+
+Q1_test %>%
+  summarize(CER = mean(na.omit(Team.Good.Pred != Team.Good.Game)))
+```
 
 
+
+```{r making a model to predict whether it was a bad team game or not}
+#building binomial model to predict whether it was a bad team game ot not
+Q1_model_bad_game <- glm(Team.Bad.Game~Change.Team.Average.RSI..m.per.s., data = Q1_train, family = "binomial")
+summary(Q1_model_bad_game)
+
+#making prediction based on the model and calculating the CER for the model on test data
+Q1_test$Team.Bad.Pred <- ifelse(predict.glm(Q1_model_bad_game, Q1_test, type="response") >0.5,1,0)
+
+Q1_test %>%
+  summarize(CER = mean(na.omit(Team.Bad.Pred != Team.Good.Game)))
+
+```
 
 
 
@@ -558,12 +603,12 @@ ggplot(data = current_season[current_season$anon_id == "ID_42",], aes(Date, Dail
 ```
 
 
-
 ```{r Looking at overall good or bad game for "ID_42"}
 ggplot(data = current_season[current_season$anon_id == "ID_42",], aes(Date, Daily.Average.RSI..m.per.s.)) +
   geom_line() +
   geom_vline(xintercept = stats_clean$Date[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1)], color = ifelse(stats_clean[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1),]$Player.Good.Game == 1, "palegreen3","red3"))
 ```
+
 
 ```{r}
 ggplot(data = current_season[current_season$anon_id == "ID_61",], aes(Date, Daily.Average.RSI..m.per.s.)) +
@@ -572,15 +617,15 @@ ggplot(data = current_season[current_season$anon_id == "ID_61",], aes(Date, Dail
 ```
 
 
-#### applying regularization techniques to team data
+###### Applying regularization techniques to team data
 ```{r}
 smooth <- exponential_smoothing(unique(current_season$Team.Average.RSI..m.per.s.),2,0)
 ma <- moving_average(unique(current_season$Team.Average.RSI..m.per.s.), 1)
 x53 <- five_three_x(unique(current_season$Team.Average.RSI..m.per.s.))
 
-current_season$Team.Average.RSI.Smooth <- rep(NA,661)
-current_season$Team.Average.RSI.Moving.Average <- rep(NA, 661)
-current_season$Team.Average.RSI.53X <- rep(NA, 661)
+current_season$Team.Average.RSI.Smooth <- rep(NA,580)
+current_season$Team.Average.RSI.Moving.Average <- rep(NA, 580)
+current_season$Team.Average.RSI.53X <- rep(NA, 580)
 
 for(i in 1:25){
   current_season[current_season$Date == Dates[i],21]<- smooth[i]
@@ -591,6 +636,35 @@ for(i in 1:25){
 ggplot(data=current_season, aes(Date, Team.Average.RSI.Moving.Average)) +
   geom_line() +
 geom_vline(xintercept = stats_clean$Date[stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1], color = ifelse(stats_clean[(stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1),]$Team.Good.Game == 1, "palegreen3","red3"))
+```
+
+###### Assessing effectiveness of RSI as predictor of in game success
+```{r}
+Q1_model_good_game_player <- glm(Player.Good.Game~Change.Player.Average.RSI..m.per.s., data = Q1_train, family = "binomial")
+
+summary(Q1_model_good_game_player)
+
+Q1_test$Player.Good.Pred <- ifelse(predict.glm(Q1_model_good_game_player, Q1_test, type="response") >0.5,1,0)
+
+Q1_test %>%
+  summarize(CER = mean(na.omit(Player.Good.Pred != Player.Good.Game)))
+```
+```{r}
+Q1_model_bad_game_player <- glm(Player.Bad.Game~Change.Player.Average.RSI..m.per.s., data = Q1_train, family = "binomial")
+
+summary(Q1_model_good_game_player)
+
+Q1_test$Player.Bad.Pred <- ifelse(predict.glm(Q1_model_bad_game_player, Q1_test, type="response") >0.5,1,0)
+
+Q1_test %>%
+  summarize(CER = mean(na.omit(Player.Bad.Pred != Player.Bad.Game)))
+```
+
+
+##### Cross Validating Errors for Good and Bad Games
+```{r}
+
+
 ```
 
 
