@@ -642,15 +642,15 @@ Q1_test$Player.Good.Pooled.Pred <- ifelse(predict(Q2_model_good_game_pooled, Q1_
 
 ```{r making unpooled model for good games}
 #making unpooled model for players
-Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
+Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
 summary(Q2_model_good_game_unpooled)
 
 #making predictions for unpooled model on the test data (calculated with probability)
 Q1_test$Player.Good.Unpooled.Pred <- ifelse(predict(Q2_model_good_game_unpooled, Q1_test, type="response")>0.46,1,0)
 
 #calculating CER of unpooled model
-#Q1_test %>%
-#  summarize(CER = mean(Player.Good.Unpooled.Pred != Player.Good.Game))
+Q1_test %>%
+  summarize(CER = mean(Player.Good.Unpooled.Pred != Player.Good.Game))
 ```
 
 
@@ -671,19 +671,19 @@ Q1_test$Player.Bad.Pooled.Pred <- ifelse(predict(Q2_model_bad_game_pooled, Q1_te
 
 ```{r making unpooled model for bad games}
 #making unpooled model for bad games
-Q2_model_bad_game_unpooled <-glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
+Q2_model_bad_game_unpooled <-glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
 summary(Q2_model_bad_game_unpooled)
 
 Q1_test$Player.Bad.Unpooled.Pred <- ifelse(predict(Q2_model_bad_game_unpooled, Q1_test, type="response")>0.03,1,0)
 
-#Q1_test %>%
-#  summarize(CER = mean(Player.Bad.Unpooled.Pred != Player.Bad.Game))
+Q1_test %>%
+  summarize(CER = mean(Player.Bad.Unpooled.Pred != Player.Bad.Game))
 ```
 
 
 
 
-##### Cross Validating Errors for Good and Bad Games with ROC curves
+##### Cross Validating Errors for Good and Bad Games with ROC Curves
 ```{r cross validating pooled model for good games}
 set.seed(123)
 
@@ -694,7 +694,7 @@ model_good_player_pooled_cv <- glm(Player.Good.Game ~ Change.Player.Average.RSI.
 #Q1_data$Player.Good.Game.Pooled.Pred <- predict(model_good_player_pooled_cv, type="response")
 
 #pred <- prediction(predictions = Q1_data$Player.Good.Game.Pooled.Pred,
-                   labels = Q1_data$Player.Good.Game)
+#                   labels = Q1_data$Player.Good.Game)
 #perf <- performance(pred,measure='tnr',x.measure='tpr')
 #plot(perf, colorize=TRUE)
 #abline(a=0, b=1)
@@ -720,7 +720,7 @@ table(x=Q1_data$Player.Good.Game.Pooled.Pred, y=Q1_data$Player.Good.Game)
 set.seed(123)
 
 #model to be used for cross validation
-model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
+model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
 
 
 #Q1_data$Player.Good.Game.Unpooled.Pred <- predict(model_good_player_unpooled_cv, type="response")
@@ -741,7 +741,6 @@ cost <- function(y, yhat){
 #cross validating the unpooled model
 summary(cv(model_good_player_unpooled_cv, k=5, clusterVariables = "anon_id", seed=123, criterion=cost))
 
-test_cv <- cv.glm(Q1_data, glmfit = model_good_player_unpooled_cv, cost = cost, K=5)
 
 Q1_data$Player.Good.Game.Unpooled.Pred <- ifelse(predict(model_good_player_unpooled_cv, type="response")>0.46,1,0)
 
