@@ -647,15 +647,15 @@ Q1_test$Player.Good.Pooled.Pred <- ifelse(predict(Q2_model_good_game_pooled, Q1_
 
 ```{r making unpooled model for good games}
 #making unpooled model for players
-Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
+Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
 summary(Q2_model_good_game_unpooled)
 
 #making predictions for unpooled model on the test data (calculated with probability)
 Q1_test$Player.Good.Unpooled.Pred <- ifelse(predict(Q2_model_good_game_unpooled, Q1_test, type="response")>0.46,1,0)
 
 #calculating CER of unpooled model
-#Q1_test %>%
-#  summarize(CER = mean(Player.Good.Unpooled.Pred != Player.Good.Game))
+Q1_test %>%
+  summarize(CER = mean(Player.Good.Unpooled.Pred != Player.Good.Game))
 ```
 
 
@@ -676,19 +676,19 @@ Q1_test$Player.Bad.Pooled.Pred <- ifelse(predict(Q2_model_bad_game_pooled, Q1_te
 
 ```{r making unpooled model for bad games}
 #making unpooled model for bad games
-Q2_model_bad_game_unpooled <-glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
+Q2_model_bad_game_unpooled <-glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
 summary(Q2_model_bad_game_unpooled)
 
 Q1_test$Player.Bad.Unpooled.Pred <- ifelse(predict(Q2_model_bad_game_unpooled, Q1_test, type="response")>0.03,1,0)
 
-#Q1_test %>%
-#  summarize(CER = mean(Player.Bad.Unpooled.Pred != Player.Bad.Game))
+Q1_test %>%
+  summarize(CER = mean(Player.Bad.Unpooled.Pred != Player.Bad.Game))
 ```
 
 
 
 
-##### Cross Validating Errors for Good and Bad Games with ROC curves
+##### Cross Validating Errors for Good and Bad Games with ROC Curves
 ```{r cross validating pooled model for good games}
 set.seed(123)
 
@@ -699,7 +699,7 @@ model_good_player_pooled_cv <- glm(Player.Good.Game ~ Change.Player.Average.RSI.
 #Q1_data$Player.Good.Game.Pooled.Pred <- predict(model_good_player_pooled_cv, type="response")
 
 #pred <- prediction(predictions = Q1_data$Player.Good.Game.Pooled.Pred,
-                   labels = Q1_data$Player.Good.Game)
+#                   labels = Q1_data$Player.Good.Game)
 #perf <- performance(pred,measure='tnr',x.measure='tpr')
 #plot(perf, colorize=TRUE)
 #abline(a=0, b=1)
@@ -725,7 +725,7 @@ table(x=Q1_data$Player.Good.Game.Pooled.Pred, y=Q1_data$Player.Good.Game)
 set.seed(123)
 
 #model to be used for cross validation
-model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
+model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
 
 
 #Q1_data$Player.Good.Game.Unpooled.Pred <- predict(model_good_player_unpooled_cv, type="response")
@@ -746,7 +746,6 @@ cost <- function(y, yhat){
 #cross validating the unpooled model
 summary(cv(model_good_player_unpooled_cv, k=5, clusterVariables = "anon_id", seed=123, criterion=cost))
 
-test_cv <- cv.glm(Q1_data, glmfit = model_good_player_unpooled_cv, cost = cost, K=5)
 
 Q1_data$Player.Good.Game.Unpooled.Pred <- ifelse(predict(model_good_player_unpooled_cv, type="response")>0.46,1,0)
 
@@ -1830,9 +1829,11 @@ summary(fixed_model_total)
 
 
 ```
+
+
 ### Question 4
 
-#### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
+#### What is each athlete's variation in RSI? What is a meaningful change in RSI for the team and for individual athletes?
 
 ```{r}
 # Some basic visualizations
@@ -1868,4 +1869,130 @@ ggplot(load_and_RSI, aes(x = RSI_Date, y = RSI)) +
   theme_classic()
 
 
+```
+
+
+```{r}
+ggplot(data=VALD_ForceDecks_clean, aes(x=Date, y=Player.Average.RSI..m.per.s.)) +
+  geom_point() +
+  geom_smooth(method="lm")
+```
+
+```{r}
+#taking out all of the IDs in the data set
+IDs <- unique(VALD_ForceDecks_clean$anon_id)
+
+#for all unique IDs, calculate Kendall rank correlation, plot player RSI throughout season 
+for(i in 1:16){
+  RSI <- unique(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.)
+  kendall_cor <- cor(1:length(RSI), RSI, method="kendall") #calculating Kendall correlation
+
+#plotting each player's RSI throughout the season with their correlation and rough model of the trend
+  p <- ggplot(data = VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],], aes(x=Date, y=Player.Average.RSI..m.per.s.)) + 
+    geom_point() +
+    geom_smooth(method="lm") +
+    labs(title = kendall_cor, subtitle = IDs[i])
+  
+#pring out each plot
+  print(p)
+}
+```
+
+
+```{r plotting each player RSI values and calculated metrics for the season}
+#for all the players, calculate mean and variance of their RSI measurements and plot
+for(i in 1:16){
+  #for every player calculate mean and variance using time series assumptions and functions from the time series functions file
+  mv <- sample_mean_and_variance(unique(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.))
+  
+  #plotting RSI measurements along with calculated mean and 1 standard deviation above and below mean for each player along with their measured RSIs throughout the season
+  p <- ggplot(data = VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],], aes(x=Date, y=Player.Average.RSI..m.per.s.)) + 
+    geom_point() +
+    geom_hline(yintercept = mv[[1]]) +
+    geom_hline(yintercept = mv[[1]] + sqrt(mv[[2]]), color="#CFB87C") +
+    geom_hline(yintercept = mv[[1]] - sqrt(mv[[2]]), color="#CFB87C") +
+    labs(title = "RSI Measurements Throughout Season with Mean and 1 Standard Deviation",subtitle = IDs[i])
+  
+  #printing out each plot
+  print(p)
+}
+```
+
+```{r making columns to indate whether a measurement is above or below player metrics}
+#making empty columns to be filled with indicator variables
+VALD_ForceDecks_clean$Player.Above.1.SD <- rep(NA,565)
+VALD_ForceDecks_clean$Player.Below.1.SD <- rep(NA,565)
+VALD_ForceDecks_clean$Player.Above.2.SD <- rep(NA,565)
+VALD_ForceDecks_clean$Player.Below.2.SD <- rep(NA,565)
+
+#for every athlete, checking if a specific RSI measurement is outside 1 standard deviation or 2 calculated for each athlete individually. 
+for(i in 1:16){
+  #calculating each player's mean and variance with time series function on the time series functions file
+  mv <- sample_mean_and_variance(unique(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.))
+  
+  #calculating thresholds for 1 and 2 standard deviations away from mean for each player
+  sdu1 <- mv[[1]] + sqrt(mv[[2]])
+  sdl1 <- mv[[1]] - sqrt(mv[[2]])
+  sdu2 <- mv[[1]] + (2*sqrt(mv[[2]]))
+  sdl2 <- mv[[1]] - (2*sqrt(mv[[2]]))
+  
+#checking if RSI value is below 1 standard deviation for each player
+  VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.1.SD <- ifelse((VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.<sdl1), 1, 0)
+  
+#checking if RSI value is above 1 standard deviation for each player
+  VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.1.SD <- ifelse((VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.>sdu1), 1, 0)
+  
+#checking if RSI value is below 2 standard deviations for each player
+  VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.2.SD <- ifelse((VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.<sdl2), 1, 0)
+  
+#checking if RSI value is above 2 standard deviations for each player
+  VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.2.SD <- ifelse((VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.>sdu2), 1, 0)
+}
+
+```
+
+```{r}
+#making a plot to show potentially significant RSI measurements throughout the season
+#dark green means point is above 1 standard deviation from mean
+#light green means point is above 2 standard deviations from mean
+#dark red means point is below 1 standard deviation from mean
+#light red means point is below 2 standard deviations from mean
+ggplot(data=VALD_ForceDecks_clean, aes(x=Date, Player.Average.RSI..m.per.s.)) +
+  geom_point(color = ifelse(VALD_ForceDecks_clean$Player.Above.2.SD == 1, "palegreen", ifelse(VALD_ForceDecks_clean$Player.Below.2.SD == 1, "red", ifelse(VALD_ForceDecks_clean$Player.Below.1.SD == 1, "red4", ifelse(VALD_ForceDecks_clean$Player.Above.1.SD == 1, "palegreen4", "grey80")))), alpha = 0.4) +
+  labs(title = "Significant RSI Measurements Throughout the Season") 
+```
+This plot shows each player's measured RSI throughout the season. Points that are colored gray are points where the player did not have a significant difference in their RSI from their mean RSI throughout the season. Dark green dots show RSI measurements that are outside of 1 standard deviation for each player and light green dots are RSI measurements that are outside 2 standard deviations for each player. Along the same lines, dark red dots shown points in which the player had an RSI outside of 1 standard deviation from their RSI distribution and light red dots show points in which the player's measured RSI is outside of 2 standard deviations of their RSI distribution. 
+One interesting thing about this plot is that there are no measurements that are below even 1 standard deviation for any player after February starts. If anything, there seems to be a higher concentration of RSI measurements that are at least above 1 standard deviation from the mean in the last 5 measurements of the season, after February starts than in the rest of the season. 
+
+```{r}
+#cycling through all of the players and plotting their RSI measurements throughout the season
+for(i in 1:16){
+  #plot the measured RSI for each player throughout the season
+  #dark green means point is above 1 standard deviation from mean
+#light green means point is above 2 standard deviations from mean
+#dark red means point is below 1 standard deviation from mean
+#light red means point is below 2 standard deviations from mean
+p <- ggplot(data=VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],], aes(x=Date, Player.Average.RSI..m.per.s.)) +
+  geom_point(color = ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.2.SD == 1, "palegreen", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.2.SD == 1, "red", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.1.SD == 1, "red4", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.1.SD == 1, "palegreen4", "grey70"))))) +
+  ylim(0.7311404, 2.963925) +
+  labs(title = "Measured RSI Values Throughout the Season and Their Significance")
+
+print(p)
+}
+```
+
+```{r}
+VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
+  group_by(Date) %>%
+  mutate(Num.Above.1SD = round(mean(Player.Above.1.SD)*length(unique(anon_id))),
+         Num.Below.1SD = round(mean(Player.Below.1.SD)*length(unique(anon_id))),
+         Num.Above.2SD = round(mean(Player.Above.2.SD)*length(unique(anon_id))),
+         Num.Below.2SD = round(mean(Player.Below.2.SD)*length(unique(anon_id)))) %>%
+  ungroup()
+
+test <- VALD_ForceDecks_clean %>%
+  group_by(Date)
+
+ggplot(data=VALD_ForceDecks_clean, aes(x=Date)) +
+  geom_col(aes(y=Num.Above.1SD))
 ```
