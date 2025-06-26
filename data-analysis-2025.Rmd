@@ -1249,6 +1249,7 @@ avg_fixed_model <- lm(RSI ~ Last.Week..Avg..Accel.Load + Last.Week..Avg..Jump.Lo
 summary(avg_fixed_model)
 
 ```
+
 ```{r total models}
 set.seed(42)
 
@@ -1339,6 +1340,8 @@ summary(fixed_model_total)
 #### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
 
 ```{r}
+# Some basic visualizations
+
 VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
     filter(Date >= as.Date("2024-10-10"))
   
