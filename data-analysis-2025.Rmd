@@ -957,6 +957,7 @@ Gameday_Minus <- Gameday_Minus |>
 ```
 
 
+# Calculate load of 7, 3, and 1, day before test day including test date.
 
 
 ```{r Load vs. RSI}
@@ -1010,11 +1011,12 @@ ggplot(data = load, aes(x=Date, y=Jump.Load, color=anon_id)) +
 The graphs seem to show that for most athletes, RSI scores increased throughout the season, while daily acceleration load decreased and jump load about stayed the same.
 
 
-```{r Calculating Prior Weeks Accel and Jump Load}
-# Calculate the average and total acceleration and jump load in the last seven days.
-# Last 7 days not last 7 sessions
-# Include that day in the last 7.
-rolling_7day <- load |>
+```{r Calculating last 7, 3, and 2 day loads}
+# Calculate the average and total acceleration and jump load in the last 7, 3, and 2 days.
+
+## Last 7 days not last 7 sessions
+# Include that day in the last 7. (That day and the 6 days before that day, total of 7)
+rolling_NDay_load <- load |>
   filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
   arrange(anon_id, Date) |>
   group_by(anon_id) |>
@@ -1028,11 +1030,63 @@ rolling_7day <- load |>
       
       current_row |>
         mutate(
-          Last.Week..Avg..Accel.Load = mean(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
-          Last.Week..Total..Accel.Load = sum(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
-          Last.Week..Avg..Jump.Load = mean(past_week$Jump.Load, na.rm = TRUE),
-          Last.Week..Total..Jump.Load = sum(past_week$Jump.Load, na.rm = TRUE),
-          Days.Used = nrow(past_week)
+          Avg..7Day..Accel.Load = mean(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Total..7Day..Accel.Load = sum(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Avg..7Day..Jump.Load = mean(past_week$Jump.Load, na.rm = TRUE),
+          Total..7Day..Jump.Load = sum(past_week$Jump.Load, na.rm = TRUE),
+          Days.Used.7Day = nrow(past_week)
+        )
+    })
+  })
+
+
+
+# Add 3 Day Load
+# That day and the two days before it
+rolling_NDay_load <- rolling_NDay_load |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  group_split() |>
+  map_dfr(~{
+    athlete_data <- .
+    map_dfr(seq_len(nrow(athlete_data)), function(i) {
+      current_row <- athlete_data[i, ]
+      past_3days <- athlete_data |>
+        filter(Date <= current_row$Date & Date > current_row$Date - days(3))  # includes current day
+
+      current_row |>
+        mutate(
+          Avg..3Day..Accel.Load = mean(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Total..3Day..Accel.Load = sum(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Avg..3Day..Jump.Load = mean(past_3days$Jump.Load, na.rm = TRUE),
+          Total..3Day..Jump.Load = sum(past_3days$Jump.Load, na.rm = TRUE),
+          Days.Used.3Day = nrow(past_3days)
+        )
+    })
+  })
+
+
+
+# Add 2 Day Load
+# That day and the day before it
+rolling_NDay_load <- rolling_NDay_load |>
+  arrange(anon_id, Date) |>
+  group_by(anon_id) |>
+  group_split() |>
+  map_dfr(~{
+    athlete_data <- .
+    map_dfr(seq_len(nrow(athlete_data)), function(i) {
+      current_row <- athlete_data[i, ]
+      past_2days <- athlete_data |>
+        filter(Date <= current_row$Date & Date > current_row$Date - days(2))  # includes current day
+
+      current_row |>
+        mutate(
+          Avg..2Day..Accel.Load = mean(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Total..2Day..Accel.Load = sum(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
+          Avg..2Day..Jump.Load = mean(past_2days$Jump.Load, na.rm = TRUE),
+          Total..2Day..Jump.Load = sum(past_2days$Jump.Load, na.rm = TRUE),
+          Days.Used.2Day = nrow(past_2days)
         )
     })
   })
@@ -1043,10 +1097,10 @@ rolling_7day <- load |>
 RSI_daily_avg <- RSI |>
   distinct(anon_id, Date, Daily.Avg.RSI..m.per.s)
 
-# Merge the RSI and load data frames
+# Merge the RSI and rolling day load data frames
 load_and_RSI <- RSI_daily_avg |>
   left_join(
-    rolling_7day,
+    rolling_NDay_load,
     by = "anon_id",
     relationship = "many-to-many"
   ) |>
@@ -1059,6 +1113,31 @@ load_and_RSI <- RSI_daily_avg |>
     Load_Date = Date.y,
     RSI = Daily.Avg.RSI..m.per.s
   )
+
+
+# Now that only have load data for N days before a test (and that day) we rename the columns
+load_and_RSI <- load_and_RSI |> rename(
+  `TD-6..Avg..Accel.Load` = Avg..7Day..Accel.Load,
+  `TD-6..Total..Accel.Load` = Total..7Day..Accel.Load,
+  `TD-6..Avg..Jump.Load` = Avg..7Day..Jump.Load,
+  `TD-6..Total..Jump.Load` = Total..7Day..Jump.Load,
+
+  `TD-2..Avg..Accel.Load` = Avg..3Day..Accel.Load,
+  `TD-2..Total..Accel.Load` = Total..3Day..Accel.Load,
+  `TD-2..Avg..Jump.Load` = Avg..3Day..Jump.Load,
+  `TD-2..Total..Jump.Load` = Total..3Day..Jump.Load,
+
+  `TD-1..Avg..Accel.Load` = Avg..2Day..Accel.Load,
+  `TD-1..Total..Accel.Load` = Total..2Day..Accel.Load,
+  `TD-1..Avg..Jump.Load` = Avg..2Day..Jump.Load,
+  `TD-1..Total..Jump.Load` = Total..2Day..Jump.Load
+)
+
+# TD-6 means the load data from the last 6 days before the test day and the test day
+# (load data from the last 6 days and the test day)
+# TD-2 means the load data from the two days prior to the test day and the test day
+# TD-1 means the data from the day before the test day and data from the test day
+
 ```
 
 
@@ -1099,14 +1178,142 @@ Lowest correlation are the Last.Week..Avg..Accel.Load and RSI.
 
 
 
-```{r Previous Week Accel Load vs. RSI}
-# Last week's load vs. RSI
-ggplot(load_and_RSI, aes(x = Last.Week..Avg..Accel.Load, y = RSI, color=anon_id)) +
-  geom_point() +
-  geom_smooth(method = "lm", se=FALSE) +
-  labs(title = "Relationship Between Previous Week's Accel Load and RSI")
+```{r Previous N Days Accel Load vs. RSI}
+# AVERAGE ACCEL LOAD:
+# Relationship between RSI and 7-Day Average Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 7-Day Avg Accel Load",
+    x = "7-Day Avg Accel Load (TD-6 to TD)",
+    y = "RSI (m/s)"
+  )
+
+# Relationship between RSI and 3-Day Average Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 3-Day Avg Accel Load",
+    x = "3-Day Avg Accel Load (TD-2 to TD)",
+    y = "RSI (m/s)"
+  )
+
+# Relationship between RSI and 2-Day Average Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 2-Day Avg Accel Load",
+    x = "2-Day Avg Accel Load (TD-1 to TD)",
+    y = "RSI (m/s)"
+  )
 
 
+# TOTAL ACCEL LOAD:
+# RSI and 7-Day Total Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-6..Total..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 7-Day Avg Accel Load",
+    x = "7-Day Total Accel Load (TD-6 to TD)",
+    y = "RSI (m/s)"
+  )
+
+
+# RSI and 3-Day Total Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-2..Total..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 3-Day Avg Accel Load",
+    x = "3-Day Total Accel Load (TD-2 to TD)",
+    y = "RSI (m/s)"
+  )
+
+
+# RSI and 2-Day Average Acceleration Load
+ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 2-Day Avg Accel Load",
+    x = "2-Day Total Accel Load (TD-1 to TD)",
+    y = "RSI (m/s)"
+  )
+
+```
+```{r Previous N Days Jump Load vs. RSI}
+# AVERAGE JUMP LOAD:
+# RSI and 7-Day Average Jump Load
+ggplot(load_and_RSI, aes(x = `TD-6..Avg..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 7-Day Avg Jump Load",
+    x = "7-Day Avg Jump Load (TD-6 to TD)",
+    y = "RSI (m/s)"
+  )
+
+# RSI and 3-Day Average Jump Load
+ggplot(load_and_RSI, aes(x = `TD-2..Avg..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 3-Day Avg Jump Load",
+    x = "3-Day Avg Jump Load (TD-2 to TD)",
+    y = "RSI (m/s)"
+  )
+
+# RSI and 2-Day Average Jump Load
+ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 2-Day Avg Jump Load",
+    x = "2-Day Avg Jump Load (TD-1 to TD)",
+    y = "RSI (m/s)"
+  )
+
+
+# TOTAL JUMP LOAD:
+# RSI and 7-Day Total Jump Load
+ggplot(load_and_RSI, aes(x = `TD-6..Total..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 7-Day Avg Jump Load",
+    x = "7-Day Total Jump Load (TD-6 to TD)",
+    y = "RSI (m/s)"
+  )
+
+
+# RSI and 3-Day Total Jump Load
+ggplot(load_and_RSI, aes(x = `TD-2..Total..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 3-Day Avg Jump Load",
+    x = "3-Day Total Jump Load (TD-2 to TD)",
+    y = "RSI (m/s)"
+  )
+
+
+# RSI and 2-Day Total Jump Load
+ggplot(load_and_RSI, aes(x = `TD-1..Total..Jump.Load`, y = RSI)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  labs(
+    title = "RSI vs. 2-Day Avg Jump Load",
+    x = "2-Day Total Jump Load (TD-1 to TD)",
+    y = "RSI (m/s)"
+  )
+
+```
+
+```{r}
 # Plot for each athlete
 unique_ids <- unique(load_and_RSI$anon_id)
 
