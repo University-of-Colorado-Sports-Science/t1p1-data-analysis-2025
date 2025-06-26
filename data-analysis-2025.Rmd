@@ -21,9 +21,14 @@ library(lubridate)
 library(boot)
 library(ROCR)
 library(purrr)
+library(ggforce)
 library(lme4)
 library(cv)
+library(caret)
+library(rsample)
+library(yardstick)
 library(knitr)
+
 
 #Example of importing our first data set from a CSV file to a data frame.
 
@@ -851,7 +856,7 @@ game_days <- daily_load |>
 
 # Add column Day.Type for GD-1 - GD-4 and gamedays
 daily_load <- daily_load |>
-  left_join(game_days, by = "anon_id") |>
+  left_join(game_days, by = "anon_id", relationship = "many-to-many") |>
   mutate(
     Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
     Day.Type = case_when(
@@ -951,6 +956,9 @@ Gameday_Minus <- Gameday_Minus |>
 
 ```
 
+
+
+
 ```{r Load vs. RSI}
 # Filter to only have data from this season
 RSI <- VALD_ForceDecks_clean |>
@@ -960,6 +968,7 @@ RSI <- VALD_ForceDecks_clean |>
   group_by(anon_id, Date) |>
   mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) |>
   ungroup()
+
 
 # Plot RSI over season
 ggplot(RSI, aes(x=Date, y=Daily.Avg.RSI..m.per.s, color=anon_id)) +
@@ -989,7 +998,8 @@ ggplot(data = id_40_load, aes(x = Date, y = Daily.Total.Accel.Load.Accum)) +
 ggplot(data = load, aes(x=Date, y=Daily.Total.Accel.Load.Accum, color=anon_id)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "2024-25 Baskteball Athlete's Daily Accel Load")
+  labs(title = "2024-25 Baskteball Athlete's Daily Acceleration Load")
+
 
 # Plot of all athlete's daily jump load throughout season
 ggplot(data = load, aes(x=Date, y=Jump.Load, color=anon_id)) +
@@ -997,9 +1007,12 @@ ggplot(data = load, aes(x=Date, y=Jump.Load, color=anon_id)) +
   geom_smooth(method = "lm", se = FALSE) +
   labs(title = "2024-25 Baskteball Athlete's Daily Jump Load")
 ```
+The graphs seem to show that for most athletes, RSI scores increased throughout the season, while daily acceleration load decreased and jump load about stayed the same.
 
-```{r Prior Weeks Load}
-# Calculate the average and total acceleration and jump load in the last seven days
+
+```{r Calculating Prior Weeks Accel and Jump Load}
+# Calculate the average and total acceleration and jump load in the last seven days.
+# Last 7 days not last 7 sessions
 # Include that day in the last 7.
 rolling_7day <- load |>
   filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
@@ -1011,7 +1024,7 @@ rolling_7day <- load |>
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
       past_week <- athlete_data |>
-        filter(Date <= current_row$Date & Date > current_row$Date - days(7)) # <= includes that day in the last 7.
+        filter(Date <= current_row$Date & Date > current_row$Date - days(7)) # (<=) includes that day in the last 7.
       
       current_row |>
         mutate(
@@ -1079,79 +1092,14 @@ cor(load_and_RSI$RSI, load_and_RSI$Last.Week..Total..Jump.Load, method = "spearm
 
 # At first glance, it seems like jump load correlates more with RSI than acceleration load
 ```
-
-
-```{r Mixed effect models}
-# ACCEL LOAD
-# Mixed Effect Models for Average Accel Load
-avg_accel_load_vs_RSI_model <- lmer(RSI ~ Last.Week..Avg..Accel.Load + (1 | anon_id), data = load_and_RSI)
-summary(avg_accel_load_vs_RSI_model)
-
-# Mixed effects model Total Accel load
-total_accel_load_vs_RSI_model <- lmer(RSI ~ Last.Week..Total..Accel.Load + (1 | anon_id), data = load_and_RSI)
-summary(total_accel_load_vs_RSI_model)
-
-# Avg accel load is more significant than total load
-
-
-
-# Predicted vs. Actual - Avg Accel
-load_and_RSI$predicted_RSI <- predict(avg_accel_load_vs_RSI_model)
-
-ggplot(load_and_RSI, aes(x = predicted_RSI, y = RSI)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
-  labs(title = "Predicted vs Actual RSI - Avg Accel",
-       x = "Predicted RSI",
-       y = "Actual RSI")
-
-# Predicted vs. Actual - Total Accel
-load_and_RSI$predicted_RSI <- predict(total_accel_load_vs_RSI_model)
-
-ggplot(load_and_RSI, aes(x = predicted_RSI, y = RSI)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
-  labs(title = "Predicted vs Actual RSI - Total Accel",
-       x = "Predicted RSI",
-       y = "Actual RSI")
-
-
-
-# JUMP LOAD
-# Mixed Effect Models for Average Jump Load
-avg_jump_load_vs_RSI_model <- lmer(RSI ~ Last.Week..Avg..Jump.Load + (1 | anon_id), data = load_and_RSI)
-summary(avg_jump_load_vs_RSI_model)
-
-# Mixed effects model Total Accel load
-total_jump_load_vs_RSI_model <- lmer(RSI ~ Last.Week..Total..Jump.Load + (1 | anon_id), data = load_and_RSI)
-summary(total_jump_load_vs_RSI_model)
+Jump Load seems to be have higher correlation to RSI.
+Lowest correlation are the Last.Week..Avg..Accel.Load and RSI.
 
 
 
 
-# Predicted vs. Actual - Avg Jump
-load_and_RSI$predicted_RSI <- predict(avg_accel_jump_vs_RSI_model)
 
-ggplot(load_and_RSI, aes(x = predicted_RSI, y = RSI)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
-  labs(title = "Predicted vs Actual RSI - Avg Jump",
-       x = "Predicted RSI",
-       y = "Actual RSI")
-
-# Predicted vs. Actual - Total Jump
-load_and_RSI$predicted_RSI <- predict(total_jump_load_vs_RSI_model)
-
-ggplot(load_and_RSI, aes(x = predicted_RSI, y = RSI)) +
-  geom_point() +
-  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
-  labs(title = "Predicted vs Actual RSI - Total Jump",
-       x = "Predicted RSI",
-       y = "Actual RSI")
-
-```
-
-```{r}
+```{r Previous Week Accel Load vs. RSI}
 # Last week's load vs. RSI
 ggplot(load_and_RSI, aes(x = Last.Week..Avg..Accel.Load, y = RSI, color=anon_id)) +
   geom_point() +
@@ -1285,18 +1233,206 @@ ggplot(load_and_RSI, aes(Last.Week..Avg..Jump.Load, RSI, color=anon_id)) +
 
 ```
 
+
+
 ```{r}
-model_both <- lmer(
-  RSI ~ Last.Week..Total..Accel.Load + Last.Week..Total..Jump.Load + (1 | anon_id),
-  data = load_and_RSI
+
+set.seed(42)
+
+# Create grouped 5-fold CV splits by anon_id
+cv_splits <- group_vfold_cv(load_and_RSI, group = anon_id, v = 5)
+
+# Mixed Effects Model with standardized predictors
+cv_mixed <- function(split) {
+  train <- training(split)
+  test <- testing(split)
+
+  # Manually standardize using training stats
+  mean_accel <- mean(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
+  sd_accel   <- sd(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
+
+  mean_jump  <- mean(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
+  sd_jump    <- sd(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
+
+  train <- train %>%
+    mutate(
+      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
+      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
+    )
+
+  test <- test %>%
+    mutate(
+      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
+      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
+    )
+
+  model <- lmer(RSI ~ z_avg_accel + z_avg_jump + (1 | anon_id), data = train)
+  preds <- predict(model, newdata = test, allow.new.levels = TRUE)
+
+  rmse_vec(truth = test$RSI, estimate = preds)
+}
+
+# GAM Model with standardized predictors
+cv_gam <- function(split) {
+  train <- training(split)
+  test <- testing(split)
+
+  # Manually standardize using training stats
+  mean_accel <- mean(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
+  sd_accel   <- sd(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
+
+  mean_jump  <- mean(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
+  sd_jump    <- sd(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
+
+  train <- train %>%
+    mutate(
+      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
+      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
+    )
+
+  test <- test %>%
+    mutate(
+      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
+      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
+    )
+
+  model <- gam(RSI ~ s(z_avg_accel) + s(z_avg_jump), data = train)
+  preds <- predict(model, newdata = test)
+
+  rmse_vec(truth = test$RSI, estimate = preds)
+}
+
+# Run CV for both models
+mixed_rmses <- map_dbl(cv_splits$splits, cv_mixed)
+gam_rmses   <- map_dbl(cv_splits$splits, cv_gam)
+
+# Summary table of mean RMSEs
+tibble(
+  Model = c("Mixed Effects (standardized)", "GAM (standardized)"),
+  Mean_RMSE = c(mean(mixed_rmses, na.rm = TRUE), mean(gam_rmses, na.rm = TRUE))
 )
-
-summary(model_both)
-
 
 ```
 
+```{r}
+# Fit fixed effects model on full data
+avg_fixed_model <- lm(RSI ~ Last.Week..Avg..Accel.Load + Last.Week..Avg..Jump.Load + factor(anon_id),
+                  data = load_and_RSI)
 
+# View summary
+summary(avg_fixed_model)
+
+```
+
+```{r total models}
+set.seed(42)
+
+# Create grouped 5-fold CV splits by anon_id
+cv_splits <- group_vfold_cv(load_and_RSI, group = anon_id, v = 5)
+
+# Mixed Effects Model with standardized total load predictors
+cv_mixed_total <- function(split) {
+  train <- training(split)
+  test <- testing(split)
+
+  # Manually standardize using training stats
+  mean_accel <- mean(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
+  sd_accel   <- sd(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
+
+  mean_jump  <- mean(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
+  sd_jump    <- sd(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
+
+  train <- train %>%
+    mutate(
+      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
+      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
+    )
+
+  test <- test %>%
+    mutate(
+      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
+      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
+    )
+
+  model <- lmer(RSI ~ z_total_accel + z_total_jump + (1 | anon_id), data = train)
+  preds <- predict(model, newdata = test, allow.new.levels = TRUE)
+
+  rmse_vec(truth = test$RSI, estimate = preds)
+}
+
+# GAM Model with standardized total load predictors
+cv_gam_total <- function(split) {
+  train <- training(split)
+  test <- testing(split)
+
+  # Manually standardize using training stats
+  mean_accel <- mean(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
+  sd_accel   <- sd(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
+
+  mean_jump  <- mean(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
+  sd_jump    <- sd(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
+
+  train <- train %>%
+    mutate(
+      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
+      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
+    )
+
+  test <- test %>%
+    mutate(
+      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
+      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
+    )
+
+  model <- gam(RSI ~ s(z_total_accel) + s(z_total_jump), data = train)
+  preds <- predict(model, newdata = test)
+
+  rmse_vec(truth = test$RSI, estimate = preds)
+}
+
+# Run CV for both models with total loads
+mixed_rmses_total <- map_dbl(cv_splits$splits, cv_mixed_total)
+gam_rmses_total   <- map_dbl(cv_splits$splits, cv_gam_total)
+
+# Summary table of mean RMSEs
+tibble(
+  Model = c("Mixed Effects (standardized total load)", "GAM (standardized total load)"),
+  Mean_RMSE = c(mean(mixed_rmses_total, na.rm = TRUE), mean(gam_rmses_total, na.rm = TRUE))
+)
+
+# Fit fixed effects model on full data with total load predictors
+fixed_model_total <- lm(RSI ~ Last.Week..Total..Accel.Load + Last.Week..Total..Jump.Load + factor(anon_id),
+                        data = load_and_RSI)
+
+summary(fixed_model_total)
+
+
+
+```
 ### Question 4
 
-#### What is each athlete's variation in RSI? What is a meaningful change in RSI for the team and for individual athletes?
+#### What is each athlete's variation in RSI? What is a meaningful changes in RSI for the team and for individual athletes?
+
+```{r}
+# Some basic visualizations
+
+VALD_ForceDecks_clean <- VALD_ForceDecks_clean |>
+    filter(Date >= as.Date("2024-10-10"))
+  
+# Boxplot showing RSI distribution for each athlete
+ggplot(VALD_ForceDecks_clean, aes(anon_id, RSI..m.per.s., color = anon_id)) +
+  geom_boxplot() +
+  labs(title = "RSI Variability by Athlete") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Line and scatter plot showing RSI trends over time for each athlete
+# Includes a black line for the team average RSI to compare individual performance to
+ggplot(VALD_ForceDecks_clean, aes(Date, Player.Average.RSI..m.per.s., color = anon_id)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se=FALSE) +
+  labs(title = "Player RSI Over Time with Team Average Line") +
+  geom_line(aes(y = Team.Average.RSI..m.per.s.), 
+            color = "black")
+
+
+```
