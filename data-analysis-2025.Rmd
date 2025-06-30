@@ -2077,4 +2077,4 @@ print(r)
 }
 ```
 
-Looking at the plots above, there does not seem to be a clear relationship between RSI measurements and loading summarized by any length (2,3,7 days). This suggests that there may have been some other change in training that had a positive impact on RSI measurements for the entire team. 
+Looking at the plots above, there does not seem to be a clear relationship between RSI measurements and loading summarized by any length (2,3,7 days). This suggests that there may have been some other change in training that had a positive impact on RSI measurements for the entire team. This may be due to something that is not loading related. Blake said it might be more targeted lifts. 
