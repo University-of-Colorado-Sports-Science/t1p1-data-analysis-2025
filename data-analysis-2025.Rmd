@@ -28,6 +28,8 @@ library(caret)
 library(rsample)
 library(yardstick)
 library(knitr)
+library(corrplot)
+library(MASS)
 
 
 #Example of importing our first data set from a CSV file to a data frame.
@@ -836,6 +838,7 @@ For the models that are predicting whether a game will be a "good game" or not, 
 ### Is the previous week's load related to RSI?
 
 #### Recalculating Gameday Minus Columns
+## Maybe Delete as we did not end up using any Gameday Minus 
 
 ```{r Gameday.Minus.N.Acceleration.Load}
 # Recalculating the Gameday.Minus.N.Acceleration.Load Columns
@@ -1143,39 +1146,85 @@ load_and_RSI <- load_and_RSI |> rename(
 
 ```
 
+```{r }
+# Check for multicollinearity by examining pairwise correlations
+# This helps identify redundant variables before modeling
 
-
-```{r Correlation tests}
-# Correlation Tests for each variable vs RSI
-
-# Define target variables
-load_vars <- c(
-  "TD-6..Avg..Accel.Load", "TD-6..Total..Accel.Load",
-  "TD-2..Avg..Accel.Load", "TD-2..Total..Accel.Load",
-  "TD-1..Avg..Accel.Load", "TD-1..Total..Accel.Load",
-  "TD-6..Avg..Jump.Load",  "TD-6..Total..Jump.Load",
-  "TD-2..Avg..Jump.Load",  "TD-2..Total..Jump.Load",
-  "TD-1..Avg..Jump.Load",  "TD-1..Total..Jump.Load"
+# 1. Compute correlation matrix for RSI and all training load variables
+cor_matrix <- cor(
+  load_and_RSI |> select(RSI, starts_with("TD")),
+  use = "complete.obs"
 )
 
-# Compute correlations
-correlation_results <- map_dfr(load_vars, function(var) {
-  pearson <- cor(load_and_RSI$RSI, load_and_RSI[[var]], use = "complete.obs")
-  spearman <- cor(load_and_RSI$RSI, load_and_RSI[[var]], method = "spearman", use = "complete.obs")
-  
-  tibble(
-    Variable = var,
-    Pearson = round(pearson, 3),
-    Spearman = round(spearman, 3)
-  )
-})
+# 2. Visualize the correlation matrix with numeric values
+# - Dark blue/red = strong correlation
+# - Add numbers show exact correlation coefficients
+corrplot(
+  cor_matrix,
+  method = "color",           # Use colored tiles
+  addCoef.col = "black",      # Add black text for correlation values
+  number.cex = 0.5,           # Size of the numbers
+)
 
-
-kable(correlation_results)
-
+# 3. Print the numeric correlation matrix, rounded to 2 decimals
+round(cor_matrix, 2)
 ```
+The variables that are most associated with RSI are TD-6..Avg..Jump.Load (0.26), TD-6..Total..Jump.Load (0.24), TD-2..Avg..Jump.Load (0.24), and TD-1..Avg..Jump.Load (0.21). 
 
+All the acceleration variables have weak correlation with RSI, so they’re likely not strong predictors.
 
+Highly correlated pairs:
+  TD-6..Total..Accel.Load <-> TD-6..Total..Jump.Load = 0.86
+      Correlation with RSI: 0.04 vs. 0.24. Exclude TD-6..Total..Accel.Load when modeling as it has a worse correlation than TD-6..Total..Jump.Load
+  TD-2..Total..Accel.Load <-> TD-2..Total..Jump.Load = 0.85
+      Correlation with RSI : -0.01 vs. 0.16. Exclude TD-2..Total..Accel.Load when modeling.
+
+```{r N Days Modeling}
+# Modeling RSI vs. Load
+
+# Model of only average load variables from each time window
+lm_avg <- lm(RSI ~ `TD-6..Avg..Accel.Load` + `TD-6..Avg..Jump.Load` +
+                     `TD-2..Avg..Accel.Load` + `TD-2..Avg..Jump.Load` +
+                     `TD-1..Avg..Accel.Load` + `TD-1..Avg..Jump.Load`,
+              data = load_and_RSI)
+
+# Model of only total load varaibles from each window
+lm_total <- lm(RSI ~ `TD-6..Total..Accel.Load` + `TD-6..Total..Jump.Load` +
+                     `TD-2..Total..Accel.Load` + `TD-2..Total..Jump.Load` +
+                     `TD-1..Total..Accel.Load` + `TD-1..Total..Jump.Load`,
+              data = load_and_RSI)
+
+# Full model excluding TD-6..Total..Accel.Load and TD-2..Total..Accel.Load
+# - Exclude these because of multicollinearity explored in last chunk
+lm_full <- lm(RSI ~  `TD-6..Avg..Accel.Load` + 
+                     `TD-6..Total..Jump.Load` + `TD-6..Avg..Jump.Load` +
+                      `TD-2..Avg..Accel.Load` +
+                     `TD-2..Total..Jump.Load` + `TD-2..Avg..Jump.Load` +
+                     `TD-1..Total..Accel.Load` + `TD-1..Avg..Accel.Load` +
+                     `TD-1..Total..Jump.Load` + `TD-1..Avg..Jump.Load`,
+              data = load_and_RSI)
+
+# Preform stepwise AIC selection on avg model (both directions forward and backward)
+model_step_avg <- stepAIC(lm_avg, direction = "both")
+
+# Preform stepwise AIC selection on total model (both directions forward and backward)
+model_step_total <- stepAIC(lm_total, direction = "both")
+
+# Preform stepwise AIC selection on full model (both directions forward and backward)
+model_step <- stepAIC(lm_full, direction = "both")
+
+# Compare AICs of all models
+AIC(lm_avg, lm_total, lm_full, model_step_avg, model_step_total, model_step)
+
+summary(model_step)
+```
+The model with the lowest AIC is model_step which is an AIC stepwise model of the lm_full model. This final model includes 7 load-based predictors from across the previous 7 days. Several predictors were statistically significant, with both postive and negative associations with RSI, suggesting a measurable relationship between prior training load and RSI.
+    Higher 6 day average acceleration load is significantly associated with lower RSI. Estimate = -0.00182. For every unit increase in 6 day average acceleration load, the model predicts a 0.00182 decrease in RSI.
+    Higher 6 day average and 1 day total jump loads are associated with higher RSI. TD-6..Avg..Jump.Load estimate = 0.0000306. TD-1..Total..Jump.Load = 0.0000196
+    Higher 1-day total acceleration load and 1-day average jump load are associated with lower RSI (Estimates = –0.000804 and –0.0000261)
+    Higher 2-day average acceleration load is associated with higher RSI (Estimate = +0.00160).
+  The model suggests that higher 6-day acceleration load reduces RSI, indicating fatigue, while certain jump loads, especially 6-day and 1-day totals, may enhance readiness.
+    
 
 
 
@@ -1221,7 +1270,7 @@ ggplot(load_and_RSI, aes(x = `TD-6..Total..Accel.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Accel Load",
+    title = "RSI vs. 7-Day Total Accel Load",
     x = "7-Day Total Accel Load (TD-6 to TD)",
     y = "RSI (m/s)"
   ) +
@@ -1233,7 +1282,7 @@ ggplot(load_and_RSI, aes(x = `TD-2..Total..Accel.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Accel Load",
+    title = "RSI vs. 3-Day Total Accel Load",
     x = "3-Day Total Accel Load (TD-2 to TD)",
     y = "RSI (m/s)"
   ) +
@@ -1245,13 +1294,14 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Accel Load",
+    title = "RSI vs. 2-Day Total Accel Load",
     x = "2-Day Total Accel Load (TD-1 to TD)",
     y = "RSI (m/s)"
   ) +
   theme_classic()
 
 ```
+
 ```{r Previous N Days Jump Load vs. RSI}
 # AVERAGE JUMP LOAD:
 # RSI and 7-Day Average Jump Load
@@ -1294,7 +1344,7 @@ ggplot(load_and_RSI, aes(x = `TD-6..Total..Jump.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Jump Load",
+    title = "RSI vs. 7-Day Total Jump Load",
     x = "7-Day Total Jump Load (TD-6 to TD)",
     y = "RSI (m/s)"
   ) +
@@ -1306,7 +1356,7 @@ ggplot(load_and_RSI, aes(x = `TD-2..Total..Jump.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Jump Load",
+    title = "RSI vs. 3-Day Total Jump Load",
     x = "3-Day Total Jump Load (TD-2 to TD)",
     y = "RSI (m/s)"
   ) +
@@ -1318,7 +1368,7 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Jump.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Jump Load",
+    title = "RSI vs. 2-Day Total Jump Load",
     x = "2-Day Total Jump Load (TD-1 to TD)",
     y = "RSI (m/s)"
   ) +
@@ -1511,7 +1561,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
        y = "Correlation (r)") +
   theme_classic()
 ```
-ID_64 seem to have a moderatley strong negative correlation between acceleration load and RSI.
+ID_64 seems to have a moderatley strong negative correlation between acceleration load and RSI.
 
 
 ```{r Per Athlete Jump Load Correlations}
@@ -1831,6 +1881,31 @@ summary(fixed_model_total)
 ```
 
 
+
+
+```{r}
+# Calculate optimal load zones
+load_zones <- load_and_RSI %>%
+  summarize(
+    accel_optimal_low = quantile(`TD-6..Avg..Accel.Load`, 0.25, na.rm = TRUE),
+    accel_optimal_high = quantile(`TD-6..Avg..Accel.Load`, 0.75, na.rm = TRUE),
+    rsi_optimal = quantile(RSI, 0.75, na.rm = TRUE)
+  )
+
+ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
+  geom_point(alpha = 0.3) +
+  geom_vline(xintercept = load_zones$accel_optimal_low, linetype = "dashed") +
+  geom_vline(xintercept = load_zones$accel_optimal_high, linetype = "dashed") +
+  geom_hline(yintercept = load_zones$rsi_optimal, linetype = "dashed") +
+  annotate("rect", 
+           xmin = load_zones$accel_optimal_low, 
+           xmax = load_zones$accel_optimal_high,
+           ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#CFB87C") +
+  labs(title = "Optimal Load Zone for RSI",
+       subtitle = "Shaded area shows load range associated with top 25% RSI scores")
+
+
+```
 ### Question 4
 
 #### What is each athlete's variation in RSI? What is a meaningful change in RSI for the team and for individual athletes?
@@ -1854,17 +1929,17 @@ ggplot(VALD_ForceDecks_clean, aes(anon_id, RSI..m.per.s.)) +
 # Includes a black line for the team average RSI to compare individual performance to
 ggplot(VALD_ForceDecks_clean, aes(Date, Player.Average.RSI..m.per.s., color = anon_id)) +
   geom_point() + 
-  geom_smooth(method = "lm", se=FALSE) +
+  geom_smooth(se=FALSE) +
   labs(title = "Player RSI Over Time with Team Average Line") +
-  geom_line(aes(y = Team.Average.RSI..m.per.s.), 
-            color = "black") +
+  geom_smooth(aes(y = Team.Average.RSI..m.per.s.), 
+            color = "#000000") +
   theme_classic()
 
 
 # Smoothed RSI Trend over time
 ggplot(load_and_RSI, aes(x = RSI_Date, y = RSI)) +
   geom_smooth(method = "loess", color = "#CFB87C", fill = "#A2A4A3") +
-  labs(title = "Smoothed RSI Trend",
+  labs(title = "Smoothed Team RSI Trend",
        x = "Date",
        y = "RSI Value") +
   theme_classic()
