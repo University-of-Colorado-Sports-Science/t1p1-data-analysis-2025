@@ -99,12 +99,14 @@ stats_clean <- stats_clean %>%
          Player.Median.Points.Scored = median(na.omit(Points.Scored))) %>%
   ungroup() %>%
   group_by(Date) %>%
+  #making team summary statistics for each game
   mutate(Team.Rebounds = sum(na.omit(Rebounds)),
          Team.Steals = sum(na.omit(Steals)),
          Team.Assists = sum(na.omit(Assists)),
          Team.Turnovers = sum(na.omit(Turnovers)),
          Team.Points.Scored = as.numeric(str_split(Game.Score, "-")[[1]][1])) %>%
   ungroup() %>%
+  #making team summary statistics for the entire season
   mutate(Team.Average.Rebounds = mean(Team.Rebounds),
          Team.Average.Steals = mean(Team.Steals),
          Team.Average.Assists = mean(Team.Assists),
@@ -173,17 +175,24 @@ class(VALD_dynamo_clean$Date)
 
 ```{r clean the ForceDecks dataset}
 VALD_ForceDecks_clean <- VALD_ForceDecks %>%
+  #removing the rows that only contain missing values
   select(where(~ !all(is.na(.)))) %>%
+  #rewrite X to the correct number of rows
   mutate(X=1:3384) %>%
+  #only looking at drop jump data to be consistent
   filter(Test.Type == "DJ") %>%
+  #only selecting relevant columns
   select(X,anon_id, Date, Week, Position, Test.Type, Weight..kg., Trial, Flight.Time..s., Jump.Height..Flight.Time...cm., Eccentric.Concentric.Mean.Force.Ratio, Contact.Time..s., RSI..JH..Flight.Time..Contact.Time., RSI..Flight.Time.Contact.Time., Drop.Height..cm.)%>%
+  #calculating RSI by hand and making the date into a valid date object
   mutate(RSI..m.per.s. = (Jump.Height..Flight.Time...cm./100)/Contact.Time..s.,
          Date = as.Date(Date, '%m/%d/%Y')) %>%
   group_by(Date, anon_id) %>%
+  #making player summary statistics
   mutate(Weight..kg. = mean(na.omit(Weight..kg.)),
          Player.Average.RSI..m.per.s. = mean(RSI..m.per.s.)) %>%
   ungroup() %>%
   group_by(Date) %>%
+  #making the team average RSI for every measurement date
   mutate(Team.Average.RSI..m.per.s. = mean(na.omit(RSI..m.per.s.)))
 ```
 
@@ -1998,13 +2007,13 @@ for(i in 1:11){
 
 ```{r making columns to indate whether a measurement is above or below player metrics}
 #making empty columns to be filled with indicator variables
-VALD_ForceDecks_clean$Player.Above.1.SD <- rep(NA,565)
-VALD_ForceDecks_clean$Player.Below.1.SD <- rep(NA,565)
-VALD_ForceDecks_clean$Player.Above.2.SD <- rep(NA,565)
-VALD_ForceDecks_clean$Player.Below.2.SD <- rep(NA,565)
+VALD_ForceDecks_clean$Player.Above.1.SD <- rep(NA,580)
+VALD_ForceDecks_clean$Player.Below.1.SD <- rep(NA,580)
+VALD_ForceDecks_clean$Player.Above.2.SD <- rep(NA,580)
+VALD_ForceDecks_clean$Player.Below.2.SD <- rep(NA,580)
 
 #for every athlete, checking if a specific RSI measurement is outside 1 standard deviation or 2 calculated for each athlete individually. 
-for(i in 1:16){
+for(i in 1:11){
   #calculating each player's mean and variance with time series function on the time series functions file
   mv <- sample_mean_and_variance(unique(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Average.RSI..m.per.s.))
   
@@ -2044,6 +2053,7 @@ This plot shows each player's measured RSI throughout the season. Points that ar
 One interesting thing about this plot is that there are no measurements that are below even 1 standard deviation for any player after February starts. If anything, there seems to be a higher concentration of RSI measurements that are at least above 1 standard deviation from the mean in the last 5 measurements of the season, after February starts than in the rest of the season. 
 This plot though, does not help us understand how players relate to each other. This chart along with the box plots of each player's RSI measurements support the conclusion that each player has a very unique RSI distribution. The plot above gets broken down by each player below. 
 
+
 ```{r}
 #cycling through all of the players and plotting their RSI measurements throughout the season
 for(i in 1:11){
@@ -2061,6 +2071,7 @@ p <- ggplot(data=VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]
 print(p)
 }
 ```
+
 The plots above help us to see that the RSI distributions for each player are going to be wildly different from each other. In fact, some of the plots have no overlap with each other (e.g. ID_5 and ID_74). This suggests that defining one singular threshold for what is a meaningful change in RSI will not be accurate for all of the players. 
 These plots when looked at all together also help us to see that when players have an RSI measurement that is below one standard deviation from their mean, it is usually associated with another measurement that is below one standard deviation either directly or in the following two or three measurements before returning to a measurement that is close to their season mean. This is not true for all players but seems to be true for most of the players. This suggests that for most of the team the recovery time for neuromuscular fatigue that results in a noticeably lower RSI score, might be around 8 to 10 days given that RSI measurements are taken every 4 to 5 days on average. 
 
@@ -2153,3 +2164,9 @@ print(r)
 ```
 
 Looking at the plots above, there does not seem to be a clear relationship between RSI measurements and loading summarized by any length (2,3,7 days). This suggests that there may have been some other change in training that had a positive impact on RSI measurements for the entire team. This may be due to something that is not loading related. Blake said it might be more targeted lifts. 
+
+
+```{r}
+ggplot(data=VALD_ForceDecks_clean, aes(x=Date, y=))
+
+```
