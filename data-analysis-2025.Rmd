@@ -1235,7 +1235,7 @@ The model with the lowest AIC is model_step which is an AIC stepwise model of th
   The model suggests that higher 6-day acceleration load reduces RSI, indicating fatigue, while certain jump loads, especially 6-day and 1-day totals, may enhance readiness.
     
 
-
+## Exploring Optimal Load Zones: Average Acceleration Load
 
 ```{r Previous N Days Accel Load vs. RSI}
 # AVERAGE ACCEL LOAD:
@@ -1343,155 +1343,23 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
   - Linear increase from 1300 to 1500
   - Drop off after 1850 (only one data point after this)
 
-```{r optimal load zones}
-# Optimal load zones for average acceleration
-# Identify and visualize load zones with highest average RSI
-
-# 7-Day Average Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-6..Avg..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 100,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 7-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
 
 
-
-
-# 3-Day Average Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-2..Avg..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 100,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 3-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
-
-
-# 2-Day Average Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-1..Avg..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 100,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 2-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
-```
-
-```{r}
-# Average
+```{r Optimal Acceleration Load Zones}
+# Identify and plot optimal load zones for Average Acceleration load
+# This will give us zones that produce the highest average RSI scores for that time window.
 
 # Define variables to analyze
 load_vars <- c("TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
-# Create individual analysis and plots for each variable
+# Create individual plots for each variable
 for (load_var in load_vars) {
   
   # Calculate optimal zone
   optimal_zone <- load_and_RSI %>%
     mutate(
-      bin_start = floor(!!sym(load_var) / 50) * 50,
-      bin_end = bin_start + 100,
+      bin_start = floor(!!sym(load_var) / 5) * 5,
+      bin_end = bin_start + 50,
       bin_label = paste0(bin_start, "-", bin_end)
     ) %>%
     group_by(bin_start, bin_end, bin_label) %>%
@@ -1500,23 +1368,23 @@ for (load_var in load_vars) {
       n = n(),
       .groups = 'drop'
     ) %>%
-    filter(n >= 5) %>%
+    filter(n >= 3) %>%
     arrange(desc(mean_RSI)) %>%
     slice(1)
   
   # Generate plot
+  # Scatter plot of RSI per time window with an "optimal load zone"
   p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
-    geom_point(alpha = 0.3, color = "gray50") +
+    geom_point(alpha = 0.3, color = "#565A5C") +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     geom_vline(
       xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
-      color = "red", linetype = "dashed", linewidth = 0.7
+      color = "#FF736F", linetype = "dashed", linewidth = 0.7
     ) +
     annotate("rect",
       xmin = optimal_zone$bin_start,
       xmax = optimal_zone$bin_end,
-      ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-    ) +
+      ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#60D272") +
     labs(
       title = paste("Optimal Zone for", load_var),
       subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
@@ -1526,157 +1394,12 @@ for (load_var in load_vars) {
     ) +
     theme_classic()
   
-  # Print results
-  print(p)
-
-  # Print optimal zone summary
-  cat(str_glue(
-    "Variable: {load_var}\n",
-    "Optimal Zone: {optimal_zone$bin_label}\n",
-    "Mean RSI: {round(optimal_zone$mean_RSI, 2)}\n",
-    "Observations: {optimal_zone$n}\n\n"
-  ))
+    print(p)
 }
-
 ```
-```{r}
-# Total Acceleration Optimal Load Zones
+From these plots, we can confidently conclude that an "optimal" daily average acceleration load should fall between 785-835 for 2 and 3 days before a test and 815-865 for 7 days before a test. These ranges produced the highest average RSI scores for their respective windows.
 
-# Identify and visualize load zones with highest average RSI
-
-# 7-Day Total Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-6..Total..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 500,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-6..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 7-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
-
-
-
-
-# 3-Day Total Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-2..Total..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 300,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-2..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 3-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
-
-
-# 2-Day Total Acceleration Load Optimal Zone
-optimal_zones <- load_and_RSI %>%
-  # Create overlapping bins (100-unit width, 50-unit steps)
-  mutate(
-    bin_start = floor(`TD-1..Total..Accel.Load` / 50) * 50,  # Round down to nearest 50
-    bin_end = bin_start + 200,
-    bin_label = paste(bin_start, bin_end, sep = "-")
-  ) %>%
-  # Group by these overlapping bins
-  group_by(bin_start, bin_end, bin_label) %>%
-  # Calculate average RSI per bin
-  summarize(
-    mean_RSI = mean(RSI, na.rm = TRUE),
-    n = n(),
-    .groups = 'drop'
-  ) %>%
-  # Filter out bins with too few data points
-  filter(n >= 5) %>%
-  # Identify the bin with highest average RSI
-  arrange(desc(mean_RSI)) %>%
-  slice(1)
-
-# Plot Zone over scatterplot
-ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-  # Add vertical lines for optimal zone
-  geom_vline(
-    xintercept = c(optimal_zones$bin_start, optimal_zones$bin_end),
-    color = "red", linetype = "dashed"
-  ) +
-  # Shade the optimal zone
-  annotate("rect",
-    xmin = optimal_zones$bin_start,
-    xmax = optimal_zones$bin_end,
-    ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
-  ) +
-  labs(
-    title = "Optimal 2-Day Acceleration Load Zone: 100-Unit Bins",
-    subtitle = paste("Highest average RSI in", optimal_zones$bin_start, "-", optimal_zones$bin_end)
-  )
-```
-
-
-
+## Exploring Optimal Load Zones: Average Jump Load
 
 ```{r Previous N Days Jump Load vs. RSI}
 # Plotting the relationship between RSI and Jump Load metrics at different time windows
@@ -1799,29 +1522,121 @@ Each graph showed low RSI scores at moderate low load levels with an increase af
   7-day total: 150000 to 300000
   3-day total: 125000 to 175000
   2-day total: 50000 to 110000
+
+
+```{r optimal jump load zones}
+# Optimal load zones for average Jump Load
+
+# Define variables to analyze
+load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load")
+
+# Create individual analysis and plots for each variable
+for (load_var in load_vars) {
   
+  # Calculate optimal zone
+  optimal_zone <- load_and_RSI %>%
+    mutate(
+      bin_start = floor(!!sym(load_var) / 50) * 50,
+      bin_end = bin_start + 4000,
+      bin_label = paste0(bin_start, "-", bin_end)
+    ) %>%
+    group_by(bin_start, bin_end, bin_label) %>%
+    summarize(
+      mean_RSI = mean(RSI, na.rm = TRUE),
+      n = n(),
+      .groups = 'drop'
+    ) %>%
+    filter(n >= 3) %>%
+    arrange(desc(mean_RSI)) %>%
+    slice(1)
+  
+  # Generate plots
+  # Scatter plot with an "optimal zone"
+  p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
+    geom_point(alpha = 0.3, color = "gray50") +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    geom_vline(
+      xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
+      color = "red", linetype = "dashed", linewidth = 0.7
+    ) +
+    annotate("rect",
+      xmin = optimal_zone$bin_start,
+      xmax = optimal_zone$bin_end,
+      ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
+    ) +
+    labs(
+      title = paste("Optimal Zone for", load_var),
+      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+                      "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
+      x = "Average Jump Load",
+      y = "RSI"
+    ) +
+    theme_classic()
+  
+  print(p)
+}
+
+```
+Jump load was a little more non consistent than acceleration load. Based on our calculations and visualizations we were not able to find conclusive evidence that supports optimal jump load zones.
 
 
-```{r}
-# Plot for each athlete
+
+```{r RSI vs. 7 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
+# 7-Day
 unique_ids <- unique(load_and_RSI$anon_id)
 
 for (id in unique_ids) {
   p <- ggplot(filter(load_and_RSI, anon_id == id),
               aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
-    geom_smooth(method = "loess", color = "#CFB87C") +
-    labs(title = paste("RSI vs. Prior Week's Accel Load:", id),
-         x = "Total Load Last 7 Days",
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (7-Day):", id),
+         x = "Average Acceleration Load",
          y = "RSI")
    print(p)
    
 }
+```
+```{r RSI vs. 3 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
+# 3-Day
 
+for (id in unique_ids) {
+  p <- ggplot(filter(load_and_RSI, anon_id == id),
+              aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
+    geom_point() +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (3-Day):", id),
+         x = "Average Load",
+         y = "RSI")
+   print(p)
+   
+}
+```
+
+
+```{r RSI vs. 2 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
+# 3-Day
+
+for (id in unique_ids) {
+  p <- ggplot(filter(load_and_RSI, anon_id == id),
+              aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
+    geom_point() +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (2-Day):", id),
+         x = "Average Load",
+         y = "RSI")
+   print(p)
+   
+}
 ```
 
 ```{r Correlation}
 # Correlation Tests for each variable vs RSI
+
+load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
 # Calculate overall Pearson correlations for each variable
 overall_corrs <- map_dfr(load_vars, ~ {
@@ -1848,7 +1663,7 @@ ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
 
 
 ```
-Jump Load seems to be more correlated and even positively correlated than accel load.
+Jump Load seems to be more correlated and even positively correlated than acceleration load.
 
 ```{r Per Athlete Accel Load Correlations}
 # Per athlete accel load correlations with RSI
@@ -2127,7 +1942,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 # This allows us to see which athlete's RSI scores are most effected by the prior week's load
 ```
-
+ID_64 has a moderately strong negative correlation between Jump Load and RSI
 
 
 
