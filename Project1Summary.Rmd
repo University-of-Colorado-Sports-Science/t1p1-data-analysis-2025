@@ -1,0 +1,10 @@
+---
+title: "Project Summary"
+author: "Cecilia Gonzales"
+date: "2025-07-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
