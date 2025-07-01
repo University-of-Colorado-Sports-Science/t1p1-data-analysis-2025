@@ -263,7 +263,7 @@ current_season$Change.Team.Average.RSI..m.per.s. <- rep(NA, 580)
 #calculating the difference in RSI from the previous measurement and attaching as a new column in the current season data set
 for(i in 2:25){
   Team.Change[i] = Team.means[i] - Team.means[i+1]
-  current_season[current_season$Date == Dates[i],19]<- Team.Change[i]
+  current_season[current_season$Date == Dates[i],]$Change.Team.Average.RSI..m.per.s.<- Team.Change[i]
 }
 
 #making binary column of whether RSI increased or not
@@ -327,7 +327,7 @@ ggplot(current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
 
 These plots show that there may not be much predictive power for team game performance from team RSI values themselves. Instead, it may be useful to look at the changes in RSI before each game or look at a normalized plot of the team's average RSI to get a look at what it would look like without as much noise.
 
-The data was normalized with a moving average process which removed some of the noise present in the data. For this plot, the green lines represent a game in which the team's stats were higher than the median for steals, assists, and rebounds. Red lines represent games where the total team sum of steals, assists, and rebounds are lower than the season median. Again, There does not seem to be a logical association between team average RSI and in game statistics. Instead, we find that games that had better in game performance are associated with lower RSI recordings before the game and games that had worse in game performance are associated with higher RSI recording just before the game. It's important to note that there gaps between measurements that could have missed important spikes or dips in RSI for the team that would give us a more clear understanding of the relationship. Previous research that was able to identify significant relationships between in game performance and RSI measurements were able to collect it before and after each event.
+The data was smoothed with a moving average process which removed some of the noise present in the data. For this plot, the green lines represent a game in which the team's stats were higher than the median for steals, assists, and rebounds. Red lines represent games where the total team sum of steals, assists, and rebounds are lower than the season median. Again, There does not seem to be a logical association between team average RSI and in game statistics. Instead, we find that games that had better in game performance are associated with lower RSI recordings before the game and games that had worse in game performance are associated with higher RSI recording just before the game. It's important to note that there gaps between measurements that could have missed important spikes or dips in RSI for the team that would give us a more clear understanding of the relationship. Previous research that was able to identify significant relationships between in game performance and RSI measurements were able to collect it before and after each event.
 
 ```{r Plotting the changes in RSI throughout the season}
 #plotting the change in team average RSI throughout the season
@@ -541,7 +541,7 @@ good_team_cv$delta[1]
 Q1_data$Team.Good.Game.Pred <- ifelse(predict(model_good_team_cv, type="response")>0.46,1,0)
 
 #looking at sensitivity and specificity
-table(x=Q1_data$Team.Good.Game.Pred, y=Q1_data$Team.Good.Game)
+table(predictions=Q1_data$Team.Good.Game.Pred, actual=Q1_data$Team.Good.Game)
 ```
 
 
@@ -574,7 +574,7 @@ bad_team_cv$delta[1]
 Q1_data$Team.Bad.Game.Pred <- ifelse(predict(model_bad_team_cv, type="response")>0.05,1,0)
 
 #looking at sensitivity and specificity
-table(x=Q1_data$Team.Bad.Game.Pred, y=Q1_data$Team.Bad.Game)
+table(predictions=Q1_data$Team.Bad.Game.Pred, actual=Q1_data$Team.Bad.Game)
 ```
 In order to limit variability and mimic past research, binary variables were created. Other research used top running speed in games to measure explosiveness of an athlete at a particular time and were compared to median top in game running speed throughout the season to define success. The data sets given did not have in game running speed so a combination of steals, assists, and rebounds were used as a proxy for a measure of explosiveness. A binary variable was created that measured if the team performed above or below median in all three metrics (1) or if one or more of the listed metrics were below the season team median (0). This is what will be predicted through changes in RSI of the team throughout the season. Shown above are the cross validated predicted error rates for the models that are used to predict whether the team will play above their median game play or below their median game play in a given game. 
 
@@ -658,7 +658,7 @@ Q1_test$Player.Good.Pooled.Pred <- ifelse(predict(Q2_model_good_game_pooled, Q1_
 
 ```{r making unpooled model for good games}
 #making unpooled model for players
-Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
+Q2_model_good_game_unpooled <-glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_train, family = "binomial")
 summary(Q2_model_good_game_unpooled)
 
 #making predictions for unpooled model on the test data (calculated with probability)
@@ -716,7 +716,7 @@ model_good_player_pooled_cv <- glm(Player.Good.Game ~ Change.Player.Average.RSI.
 #abline(a=0, b=1)
 
 cost <- function(obs, pred){
-  mean((pred <=.49) &obs==1 | (pred > 0.49) & obs==0)
+  mean((pred <=.5) &obs==1 | (pred > 0.5) & obs==0)
 }
 
 #cross validating model
@@ -725,10 +725,10 @@ good_player_cv <- cv.glm(data=Q1_data,glmfit=model_good_player_pooled_cv,cost,K=
 #extract average error
 good_player_cv$delta[1]
 
-Q1_data$Player.Good.Game.Pooled.Pred <- ifelse(predict(model_good_player_pooled_cv, type="response")>0.49,1,0)
+Q1_data$Player.Good.Game.Pooled.Pred <- ifelse(predict(model_good_player_pooled_cv, type="response")>0.5,1,0)
 
 #looking at sensitivity and specificity
-table(x=Q1_data$Player.Good.Game.Pooled.Pred, y=Q1_data$Player.Good.Game)
+table(predicted=Q1_data$Player.Good.Game.Pooled.Pred, actual=Q1_data$Player.Good.Game)
 ```
 
 
@@ -736,8 +736,16 @@ table(x=Q1_data$Player.Good.Game.Pooled.Pred, y=Q1_data$Player.Good.Game)
 set.seed(123)
 
 #model to be used for cross validation
-model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
+model_good_player_unpooled_cv <- glmer(Player.Good.Game~Change.Player.Average.RSI..m.per.s. + (1+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
 
+summary(model_good_player_unpooled_cv)
+coef(model_good_player_unpooled_cv)
+rands <- ranef(model_good_player_unpooled_cv)[[1]]$Change.Player.Average.RSI..m.per.s.
+rands
+look <- data.frame(lower <- rands - rep(0.1775, 11),
+           upper <- rands + rep(0.1775, 11))
+look
+fixef(model_good_player_unpooled_cv)
 
 #Q1_data$Player.Good.Game.Unpooled.Pred <- predict(model_good_player_unpooled_cv, type="response")
 
@@ -763,15 +771,16 @@ Q1_data$Player.Good.Game.Unpooled.Pred <- ifelse(predict(model_good_player_unpoo
 #looking at sensitivity and specificity
 table(x=Q1_data$Player.Good.Game.Unpooled.Pred, y=Q1_data$Player.Good.Game)
 ```
-
+3, 8, 10, ID_42, ID_62, ID_22
 
 
 ```{r cross validating unpooled model for bad games}
 set.seed(123)
 
 #model to be used for cross validation
-model_bad_player_unpooled_cv <- glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (1|anon_id) + (0+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
+model_bad_player_unpooled_cv <- glmer(Player.Bad.Game~Change.Player.Average.RSI..m.per.s. + (1+Change.Player.Average.RSI..m.per.s.|anon_id), data=Q1_data, family = "binomial")
 
+summary(model_bad_player_unpooled_cv)
 #Q1_data$Player.Bad.Game.Unpooled.Pred <- predict(model_bad_player_unpooled_cv, type="response")
 
 #pred <- prediction(predictions = Q1_data$Player.Bad.Game.Unpooled.Pred,
@@ -791,10 +800,17 @@ summary(cv(model_bad_player_unpooled_cv, k=5, clusterVariables = "anon_id", seed
 Q1_data$Player.Bad.Game.Unpooled.Pred <- ifelse(predict(model_bad_player_unpooled_cv, type="response")>0.05,1,0)
 
 #looking at sensitivity and specificity
-table(x=Q1_data$Player.Bad.Game.Unpooled.Pred, y=Q1_data$Player.Bad.Game)
+table(predicted=Q1_data$Player.Bad.Game.Unpooled.Pred, actual=Q1_data$Player.Bad.Game)
+
+
+rands <- ranef(model_bad_player_unpooled_cv)[[1]]$Change.Player.Average.RSI..m.per.s.
+rands
+look <- data.frame(lower <- rands - rep(6.223, 11),
+           upper <- rands + rep(6.223, 11))
+look
 ```
 
-
+2,3
 
 ```{r cross validating pooled model for bad games}
 set.seed(123)
@@ -811,16 +827,16 @@ model_bad_player_cv <- glm(Player.Bad.Game ~ Change.Player.Average.RSI..m.per.s.
 #abline(a=0, b=1)
 
 cost <- function(obs, pred){
-  mean((pred <=.03) & obs==1 | (pred > 0.03) & obs==0)
+  mean((pred <=.04) & obs==1 | (pred > 0.04) & obs==0)
 }
 
 #cross validating model
 bad_player_cv <- cv.glm(data=Q1_data,glmfit=model_bad_player_cv,cost,K=5)
 
 #extract average error
-bad_team_cv$delta[1]
+bad_player_cv$delta[1]
 
-Q1_data$Player.Bad.Game.Pooled.Pred <- if_else(predict(model_bad_player_cv, type="response")>0.03,1,0)
+Q1_data$Player.Bad.Game.Pooled.Pred <- if_else(predict(model_bad_player_cv, type="response")>0.04,1,0)
 
 #looking at sensitivity and specificity
 table(x=Q1_data$Player.Bad.Game.Pooled.Pred, y=Q1_data$Player.Bad.Game)
