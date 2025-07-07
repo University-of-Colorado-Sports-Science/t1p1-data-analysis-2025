@@ -9,13 +9,12 @@ output: html_notebook
 
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
-#LAST UPDATED: 6/12/2025
+#LAST UPDATED: 7/7/2025
 
 #Including helpful libraries
 library(tidyverse)
 library(readxl)
 library(aod)
-library(dplyr)
 library(ggplot2)
 library(lubridate)
 library(boot)
@@ -30,6 +29,8 @@ library(yardstick)
 library(knitr)
 library(corrplot)
 library(MASS)
+library(dplyr)
+
 
 
 #Example of importing our first data set from a CSV file to a data frame.
@@ -60,7 +61,7 @@ kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compress
 
 ```{r clean stats dataset}
 # Remove columns where all data points are NA
-stats_clean <- stats |>
+stats_clean <- stats %>%
   dplyr::select(where(~ !all(is.na(.))))
 
 
@@ -68,7 +69,8 @@ stats_clean <- stats |>
 if (all(stats_clean$Date == stats_clean$Date.Reverse, na.rm = TRUE) &&
     all(stats_clean$Date == stats_clean$Session.Date, na.rm = TRUE)) {
   
-  stats_clean <- stats_clean |>
+  stats_clean <- stats_clean %>%
+
     dplyr::select(-c(Date.Reverse, Session.Date))
 }
 
@@ -132,6 +134,7 @@ kinexon_ACWR_clean <- kinexon_ACWR |>
 if (all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Date.Reverse, na.rm = TRUE) &&
     all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Session.Date, na.rm = TRUE)) {
   
+
   kinexon_ACWR_clean <- kinexon_ACWR_clean |>
     dplyr::select(-c(Date.Reverse, Session.Date))
 }
@@ -175,6 +178,7 @@ class(VALD_dynamo_clean$Date)
 
 ```{r clean the ForceDecks dataset}
 VALD_ForceDecks_clean <- VALD_ForceDecks %>%
+
   #removing the rows that only contain missing values
   dplyr::select(where(~ !all(is.na(.)))) %>%
   #rewrite X to the correct number of rows
@@ -183,6 +187,7 @@ VALD_ForceDecks_clean <- VALD_ForceDecks %>%
   filter(Test.Type == "DJ") %>%
   #only selecting relevant columns
   dplyr::select(X,anon_id, Date, Week, Position, Test.Type, Weight..kg., Trial, Flight.Time..s., Jump.Height..Flight.Time...cm., Eccentric.Concentric.Mean.Force.Ratio, Contact.Time..s., RSI..JH..Flight.Time..Contact.Time., RSI..Flight.Time.Contact.Time., Drop.Height..cm.)%>%
+
   #calculating RSI by hand and making the date into a valid date object
   mutate(RSI..m.per.s. = (Jump.Height..Flight.Time...cm./100)/Contact.Time..s.,
          Date = as.Date(Date, '%m/%d/%Y')) %>%
@@ -198,6 +203,7 @@ VALD_ForceDecks_clean <- VALD_ForceDecks %>%
 
 ```{r kinexon session mbb cleaning}
 # Remove columns where all data points are NA
+
 kinexon_session_clean <- kinexon_session |>
   dplyr::select(where(~ !all(is.na(.))))
 
@@ -212,7 +218,7 @@ class(kinexon_session_clean$Date)
 
 
 # Filter to only include data from this season
-kinexon_session_clean <- kinexon_session_clean |>
+kinexon_session_clean <- kinexon_session_clean %>%
   filter(Date >= as.Date("2024-6-01"))
 ```
 
@@ -847,6 +853,7 @@ For the models that are predicting whether a game will be a "good game" or not, 
 # Recalculating the Gameday.Minus.N.Acceleration.Load Columns
 
 # Create a df with relevant columns and add column specifying if that day was a game or not
+
 daily_load <- kinexon_session_clean |>
   mutate(Game.Day = if_else(Type == "Game", 1, 0)) |>
   filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
@@ -856,12 +863,21 @@ daily_load <- kinexon_session_clean |>
 # Get all game day dates per player as a lookup table
 game_days <- daily_load |>
   filter(Game.Day == 1) |>
+daily_load <- kinexon_session_clean %>%
+  mutate(Game.Day = if_else(Type == "Game", 1, 0)) %>%
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) %>%
+  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) %>%
+  arrange(anon_id, Date)
+
+# Get all game day dates per player as a lookup table
+game_days <- daily_load %>%
+  filter(Game.Day == 1) %>%
   dplyr::select(anon_id, Game.Date = Date)
     
 
 # Add column Day.Type for GD-1 - GD-4 and gamedays
-daily_load <- daily_load |>
-  left_join(game_days, by = "anon_id", relationship = "many-to-many") |>
+daily_load <- daily_load %>%
+  left_join(game_days, by = "anon_id", relationship = "many-to-many") %>%
   mutate(
     Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
     Day.Type = case_when(
@@ -874,10 +890,13 @@ daily_load <- daily_load |>
     )
   ) |>
   filter(!is.na(Day.Type)) |>    # keep only rows within 4 days before game
+
+  ) %>%
+  filter(!is.na(Day.Type)) %>%    # keep only rows within 4 days before game
   dplyr::select(-Game.Date, -Days.Until.Game)
 
 # Add columns for Gameday.Minus.N.Acceleration.Load
-Gameday_Minus <- daily_load |>
+Gameday_Minus <- daily_load %>%
   mutate(
     Gameday.Minus.1.Acceleration.Load = if_else(Day.Type == "GD-1", Daily.Total.Accel.Load.Accum, NA_real_),
     Gameday.Minus.2.Acceleration.Load = if_else(Day.Type == "GD-2", Daily.Total.Accel.Load.Accum, NA_real_),
@@ -887,7 +906,7 @@ Gameday_Minus <- daily_load |>
   )
 
 # Delete duplicate rows
-Gameday_Minus <- Gameday_Minus |>
+Gameday_Minus <- Gameday_Minus %>%
   distinct()
 
 ```
@@ -896,9 +915,9 @@ Gameday_Minus <- Gameday_Minus |>
 # Create columns for Average.Gameday.Minus.N.Acceleration.Load
 
 # Calculate and add columns for running averages
-Gameday_Minus <- Gameday_Minus |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
+Gameday_Minus <- Gameday_Minus %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
   mutate(
     # Cumulative count and sum for GD-1
     cum_count_gd1 = cumsum(!is.na(Gameday.Minus.1.Acceleration.Load)),
@@ -944,9 +963,9 @@ Gameday_Minus <- Gameday_Minus |>
 ```{r Average.Gameday.Acceleration.Load}
 # Calculate running averages of Gameday.Acceleration.Load and add column Average.Gameday.Acceleration.Load
 
-Gameday_Minus <- Gameday_Minus |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
+Gameday_Minus <- Gameday_Minus %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
   mutate(
     cum_count_gd = cumsum(!is.na(GameDay.Acceleration.Load)),
     cum_sum_gd = cumsum(replace_na(GameDay.Acceleration.Load, 0)),
@@ -955,6 +974,7 @@ Gameday_Minus <- Gameday_Minus |>
       cum_sum_gd / cum_count_gd,
       NA_real_
     )
+
   ) |>
   ungroup() |>
   dplyr::select(-cum_count_gd, -cum_sum_gd) # clean up columns
@@ -967,32 +987,49 @@ Gameday_Minus <- Gameday_Minus |>
 
 ```{r Load vs. RSI}
 # Filter to only have data from this season
+
 RSI <- VALD_ForceDecks_clean |>
   filter(Date >= as.Date("2024-10-10")) |>
   dplyr::select(anon_id, Date, RSI..m.per.s., Trial) |>
   arrange(anon_id, Date) |>
   group_by(anon_id, Date) |>
   mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) |>
+
+# select relevant columns for question
+# add Daily.Avg.RSI..m.per.s column
+RSI <- VALD_ForceDecks_clean %>%
+  filter(Date >= as.Date("2024-10-10")) %>%
+  dplyr::select(anon_id, Date, RSI..m.per.s., Trial) %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id, Date) %>%
+  mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) %>%
   ungroup()
 
 
-# Plot RSI over season
-ggplot(RSI, aes(x=Date, y=Daily.Avg.RSI..m.per.s, color=anon_id)) +
+# Plot RSI over season by colored athlete and with a smooth
+ggplot(RSI, aes(x = Date, y = Daily.Avg.RSI..m.per.s, color = anon_id)) +
   geom_point() +
   geom_smooth(method="lm", se=FALSE) +
   labs(title = "Athlete RSI Scores Throughout Season") +
   theme_classic()
 
 
+
 # Create load data frame containing columns relevant to load
 load <- kinexon_session_clean |>
   filter(Date >= as.Date("2024-10-10")) |>
   dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) |>
+
+# Create load data frame containing columns relevant to load from this season
+# Filter out NAs
+load <- kinexon_session_clean %>%
+  filter(Date >= as.Date("2024-10-10")) %>%
+  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) %>%
   filter(!is.na(Daily.Total.Accel.Load.Accum))
 
 
 # Look into Daily Acceleration Load for one athlete
-id_40_load <- load |>
+id_40_load <- load %>%
   filter(anon_id == "ID_40")
 # Plot of ID_40's Daily Accel Load
 ggplot(data = id_40_load, aes(x = Date, y = Daily.Total.Accel.Load.Accum)) +
@@ -1025,19 +1062,19 @@ The graphs seem to show that for most athletes, RSI scores increased throughout 
 
 ## Last 7 days not last 7 sessions
 # Include that day in the last 7. (That day and the 6 days before that day, total of 7)
-rolling_NDay_load <- load |>
-  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- load %>%
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_week <- athlete_data |>
+      past_week <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(7)) # (<=) includes that day in the last 7.
       
-      current_row |>
+      current_row %>%
         mutate(
           Avg..7Day..Accel.Load = mean(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..7Day..Accel.Load = sum(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1052,18 +1089,18 @@ rolling_NDay_load <- load |>
 
 # Add 3 Day Load
 # That day and the two days before it
-rolling_NDay_load <- rolling_NDay_load |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- rolling_NDay_load %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_3days <- athlete_data |>
+      past_3days <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(3))  # includes current day
 
-      current_row |>
+      current_row %>%
         mutate(
           Avg..3Day..Accel.Load = mean(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..3Day..Accel.Load = sum(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1078,18 +1115,18 @@ rolling_NDay_load <- rolling_NDay_load |>
 
 # Add 2 Day Load
 # That day and the day before it
-rolling_NDay_load <- rolling_NDay_load |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- rolling_NDay_load %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_2days <- athlete_data |>
+      past_2days <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(2))  # includes current day
 
-      current_row |>
+      current_row %>%
         mutate(
           Avg..2Day..Accel.Load = mean(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..2Day..Accel.Load = sum(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1103,20 +1140,20 @@ rolling_NDay_load <- rolling_NDay_load |>
 ```
 
 ```{r merge}
-RSI_daily_avg <- RSI |>
+RSI_daily_avg <- RSI %>%
   distinct(anon_id, Date, Daily.Avg.RSI..m.per.s)
 
 # Merge the RSI and rolling day load data frames
-load_and_RSI <- RSI_daily_avg |>
+load_and_RSI <- RSI_daily_avg %>%
   left_join(
     rolling_NDay_load,
     by = "anon_id",
     relationship = "many-to-many"
-  ) |>
-  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) |> # <= includes same day. On days when RSI and accel load are measured, accel load is measured first, meaning we should include it.
+  ) %>%
+  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) %>% # <= includes same day. On days when RSI and accel load are measured, accel load is measured first, meaning we should include it.
   group_by(anon_id, Date.x) |>
   slice_max(Date.y, n = 1) |>  # Keep the most recent load data before RSI
-  ungroup() |>
+  ungroup() %>%
   rename(
     RSI_Date = Date.x,
     Load_Date = Date.y,
@@ -1125,7 +1162,7 @@ load_and_RSI <- RSI_daily_avg |>
 
 
 # Now that only have load data for N days before a test (and that day) we rename the columns
-load_and_RSI <- load_and_RSI |> rename(
+load_and_RSI <- load_and_RSI %>% rename(
   `TD-6..Avg..Accel.Load` = Avg..7Day..Accel.Load,
   `TD-6..Total..Accel.Load` = Total..7Day..Accel.Load,
   `TD-6..Avg..Jump.Load` = Avg..7Day..Jump.Load,
@@ -1149,6 +1186,40 @@ load_and_RSI <- load_and_RSI |> rename(
 
 ```
 
+
+```{r Correlation}
+# Correlation Tests for each variable vs RSI
+
+load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
+
+# Calculate overall Pearson correlations for each variable
+overall_corrs <- map_dfr(load_vars, ~ {
+  load_and_RSI %>%
+    summarize(
+      r = cor(RSI, .data[[.x]], use = "complete.obs"),
+      n = n()
+    ) |> 
+    mutate(variable = .x)
+})
+
+# Basic plot (no theming)
+ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
+  geom_col(fill = "#CFB87C") +
+  geom_text(aes(label = round(r, 2)), 
+            hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
+            size = 3) +
+  coord_flip() +
+  labs(title = "Correlation Between Load Metrics and RSI",
+       x = "Load Metric",
+       y = "Pearson Correlation (r)") +
+  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
+  theme_classic()
+
+
+```
+Jump Load seems to be more correlated and even positively correlated than acceleration load.
+
+
 ```{r }
 # Check for multicollinearity by examining pairwise correlations
 # This helps identify redundant variables before modeling
@@ -1156,6 +1227,7 @@ load_and_RSI <- load_and_RSI |> rename(
 # 1. Compute correlation matrix for RSI and all training load variables
 cor_matrix <- cor(
   load_and_RSI |> dplyr::select(RSI, starts_with("TD")),
+
   use = "complete.obs"
 )
 
@@ -1191,7 +1263,7 @@ lm_avg <- lm(RSI ~ `TD-6..Avg..Accel.Load` + `TD-6..Avg..Jump.Load` +
                      `TD-1..Avg..Accel.Load` + `TD-1..Avg..Jump.Load`,
               data = load_and_RSI)
 
-# Model of only total load varaibles from each window
+# Model of only total load variables from each window
 lm_total <- lm(RSI ~ `TD-6..Total..Accel.Load` + `TD-6..Total..Jump.Load` +
                      `TD-2..Total..Accel.Load` + `TD-2..Total..Jump.Load` +
                      `TD-1..Total..Accel.Load` + `TD-1..Total..Jump.Load`,
@@ -1221,7 +1293,7 @@ AIC(lm_avg, lm_total, lm_full, model_step_avg, model_step_total, model_step)
 
 summary(model_step)
 ```
-The model with the lowest AIC is model_step which is an AIC stepwise model of the lm_full model. This final model includes 7 load-based predictors from across the previous 7 days. Several predictors were statistically significant, with both postive and negative associations with RSI, suggesting a measurable relationship between prior training load and RSI.
+The model with the lowest AIC is model_step which is an AIC stepwise model of the lm_full model. This final model includes 7 load-based predictors from across the previous 7 days. Several predictors were statistically significant, with both positive and negative associations with RSI, suggesting a measurable relationship between prior training load and RSI.
     Higher 6 day average acceleration load is significantly associated with lower RSI. Estimate = -0.00182. For every unit increase in 6 day average acceleration load, the model predicts a 0.00182 decrease in RSI.
     Higher 6 day average and 1 day total jump loads are associated with higher RSI. TD-6..Avg..Jump.Load estimate = 0.0000306. TD-1..Total..Jump.Load = 0.0000196
     Higher 1-day total acceleration load and 1-day average jump load are associated with lower RSI (Estimates = –0.000804 and –0.0000261)
@@ -1229,7 +1301,7 @@ The model with the lowest AIC is model_step which is an AIC stepwise model of th
   The model suggests that higher 6-day acceleration load reduces RSI, indicating fatigue, while certain jump loads, especially 6-day and 1-day totals, may enhance readiness.
     
 
-
+## Exploring Optimal Load Zones: Average Acceleration Load
 
 ```{r Previous N Days Accel Load vs. RSI}
 # AVERAGE ACCEL LOAD:
@@ -1304,9 +1376,104 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
   theme_classic()
 
 ```
+7-day Avg Accel Load:
+  - Max at start (not much data)
+  - U shape
+  - Minimum is when avg accel load is about 675.
+  - Increases from 675 to 900.
+  
+3-Day Avg Acceleration Load:
+  - Minimum at 625.
+  - Max at start.
+  - Increase from 625 to 725.
+  - Gradual decrease after 800.
+  
+2-Day Avg Acceleration Load:
+  - Max at start (not much data)
+  - Min at 1100 (not much data)
+  - Another low point at 600.
+  - RSI scores drop off after 910 (only two data points past this)
+  
+7-Day Total Acceleration Load:
+  - Max at end (5000)
+  - Min at 3000
+  - Decrease from 1000 to 3000.
+  - Increase from 3000 to 5000.
+  
+3-Day Total Acceleration Load:
+  - Min range from 1750 to 2000.
+  - Linear increase after 1800.
+
+2-Day Total Acceleration Load:
+  - Min range from 1000 to 1300
+  - Linear increase from 1300 to 1500
+  - Drop off after 1850 (only one data point after this)
+
+
+
+```{r Optimal Acceleration Load Zones}
+# Identify and plot optimal load zones for Average Acceleration load
+# This will give us zones that produce the highest average RSI scores for that time window.
+
+# Define variables to analyze
+load_vars <- c("TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
+
+# Create individual plots for each variable
+for (load_var in load_vars) {
+  
+  # Calculate optimal zone
+  optimal_zone <- load_and_RSI %>%
+    mutate(
+      bin_start = floor(!!sym(load_var) / 5) * 5,
+      bin_end = bin_start + 50,
+      bin_label = paste0(bin_start, "-", bin_end)
+    ) %>%
+    group_by(bin_start, bin_end, bin_label) %>%
+    summarize(
+      mean_RSI = mean(RSI, na.rm = TRUE),
+      n = n(),
+      .groups = 'drop'
+    ) %>%
+    filter(n >= 3) %>%
+    arrange(desc(mean_RSI)) %>%
+    slice(1)
+  
+  # Generate plot
+  # Scatter plot of RSI per time window with an "optimal load zone"
+  p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
+    geom_point(alpha = 0.3, color = "#565A5C") +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    geom_vline(
+      xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
+      color = "#FF736F", linetype = "dashed", linewidth = 0.7
+    ) +
+    annotate("rect",
+      xmin = optimal_zone$bin_start,
+      xmax = optimal_zone$bin_end,
+      ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#60D272") +
+    labs(
+      title = paste("Optimal Zone for", load_var),
+      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+                      "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
+      x = "Average Acceleration Load",
+      y = "RSI"
+    ) +
+    theme_classic()
+  
+    print(p)
+}
+```
+From these plots, we can confidently conclude that an "optimal" daily average acceleration load should fall between 785-835 for 2 and 3 days before a test and 815-865 for 7 days before a test. These ranges produced the highest average RSI scores for their respective windows.
+
+## Exploring Optimal Load Zones: Average Jump Load
 
 ```{r Previous N Days Jump Load vs. RSI}
-# AVERAGE JUMP LOAD:
+# Plotting the relationship between RSI and Jump Load metrics at different time windows
+# Scatterplots comparing RSI to different Jump Load windows
+    # Top three plots: Average jump load over 7, 3, and 2 days before an RSI test.
+    # Bottom three: Total jump load over 7, 3, and 2 days before an RSI test.
+
+# AVERAGE JUMP LOADS:
 # RSI and 7-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Avg..Jump.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
@@ -1341,7 +1508,7 @@ ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
   theme_classic()
 
 
-# TOTAL JUMP LOAD:
+# TOTAL JUMP LOADS:
 # RSI and 7-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Total..Jump.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
@@ -1376,68 +1543,175 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Jump.Load`, y = RSI)) +
     y = "RSI (m/s)"
   ) +
   theme_classic()
-
 ```
 
-```{r}
-# Plot for each athlete
+7 Day Avg Jump Load
+ - We see a slight decrease in RSI scores as jump load increases from low to moderate levels.
+ - Then, as jump load continues to increase into moderate/high levels we see an increase in RSI.
+ 
+3 Day Avg Jump Load
+  - Initially we see a pretty steep decrease in RSI as we increase load (10000 to 22500). 
+  - From there RSI levels stay pretty steady until about 30000
+  - From 30000 RSI levels increase until about 50000
+  - We see a slight drop off in RSI levels after 50000.
+  
+2-Day Avg Jump Load
+  - Similar to 3 day.
+  - Initial RSI decline until 21000.
+  - No change until 28500
+  - Steep incline until 35000.
+  - Very slight incline until just after 60000 where there is a slight drop off.
+  
+7-Day Total Jump Load
+  - Similar to 7 day avg.
+  - Decline in RSI until 100000.
+  - Then we have what almost looks exponential from 100000 to 300000.
+  - No drop off at end.
+  
+3-Day Total Jump Load
+  - U shape from 30000 to 75000,
+  - Slight drop off until 110000
+  - Linear increase from 110000 to 1750000.
+  - No drop off
+
+2-Day Total Jump Load
+  - Similar to 3-day avg
+  - Initial decrease in RSI for low total jump load
+  - Increase in RSI as total jump load increases to moderate/ high moderate.
+  - Slight drop off at very end.
+  
+Each graph showed low RSI scores at moderate low load levels with an increase after. This leads us to believe that jump load "sweet spots" to maximize RSI lie in the moderate high range. Ranges:
+  7-day avg: 35000 to 55000
+  3-day avg: 35000 to 50000
+  2-day avg: 28500 to 58000
+  
+  7-day total: 150000 to 300000
+  3-day total: 125000 to 175000
+  2-day total: 50000 to 110000
+
+
+```{r optimal jump load zones}
+# Optimal load zones for average Jump Load
+
+# Define variables to analyze
+load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load")
+
+# Create individual analysis and plots for each variable
+for (load_var in load_vars) {
+  
+  # Calculate optimal zone
+  optimal_zone <- load_and_RSI %>%
+    mutate(
+      bin_start = floor(!!sym(load_var) / 50) * 50,
+      bin_end = bin_start + 4000,
+      bin_label = paste0(bin_start, "-", bin_end)
+    ) %>%
+    group_by(bin_start, bin_end, bin_label) %>%
+    summarize(
+      mean_RSI = mean(RSI, na.rm = TRUE),
+      n = n(),
+      .groups = 'drop'
+    ) %>%
+    filter(n >= 3) %>%
+    arrange(desc(mean_RSI)) %>%
+    slice(1)
+  
+  # Generate plots
+  # Scatter plot with an "optimal zone"
+  p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
+    geom_point(alpha = 0.3, color = "gray50") +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    geom_vline(
+      xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
+      color = "red", linetype = "dashed", linewidth = 0.7
+    ) +
+    annotate("rect",
+      xmin = optimal_zone$bin_start,
+      xmax = optimal_zone$bin_end,
+      ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
+    ) +
+    labs(
+      title = paste("Optimal Zone for", load_var),
+      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+                      "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
+      x = "Average Jump Load",
+      y = "RSI"
+    ) +
+    theme_classic()
+  
+  print(p)
+}
+
+```
+Jump load was a little more non consistent than acceleration load. Based on our calculations and visualizations we were not able to find conclusive evidence that supports optimal jump load zones.
+
+
+
+```{r RSI vs. 7 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
+# 7-Day
 unique_ids <- unique(load_and_RSI$anon_id)
 
 for (id in unique_ids) {
   p <- ggplot(filter(load_and_RSI, anon_id == id),
               aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
-    geom_smooth(method = "loess", color = "#CFB87C") +
-    labs(title = paste("RSI vs. Prior Week's Accel Load:", id),
-         x = "Total Load Last 7 Days",
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (7-Day):", id),
+         x = "Average Acceleration Load",
          y = "RSI")
    print(p)
    
 }
+```
+```{r RSI vs. 3 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
+# 3-Day
 
+for (id in unique_ids) {
+  p <- ggplot(filter(load_and_RSI, anon_id == id),
+              aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
+    geom_point() +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (3-Day):", id),
+         x = "Average Acceleration Load",
+         y = "RSI")
+   print(p)
+   
+}
 ```
 
-```{r Correlation}
-# Correlation Tests for each variable vs RSI
 
-# Calculate overall Pearson correlations for each variable
-overall_corrs <- map_dfr(load_vars, ~ {
-  load_and_RSI |> 
-    summarize(
-      r = cor(RSI, .data[[.x]], use = "complete.obs"),
-      n = n()
-    ) |> 
-    mutate(variable = .x)
-})
+```{r RSI vs. 2 day Average Acceleration Load per Athlete}
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
+# 2-Day
 
-# Basic plot (no theming)
-ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
-  geom_col(fill = "#CFB87C") +
-  geom_text(aes(label = round(r, 2)), 
-            hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
-            size = 3) +
-  coord_flip() +
-  labs(title = "Correlation Between Load Metrics and RSI",
-       x = "Load Metric",
-       y = "Pearson Correlation (r)") +
-  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
-  theme_classic()
-
-
+for (id in unique_ids) {
+  p <- ggplot(filter(load_and_RSI, anon_id == id),
+              aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
+    geom_point() +
+    geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
+    labs(title = paste("RSI vs. Average Acceleration Load (2-Day):", id),
+         x = "Average Acceleration Load",
+         y = "RSI")
+   print(p)
+   
+}
 ```
-Jump Load seems to be more correlated and even positively correlated than accel load.
+
+
 
 ```{r Per Athlete Accel Load Correlations}
 # Per athlete accel load correlations with RSI
 
 # ACCEL LOAD:
 # Average 7 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1454,12 +1728,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 7 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1477,12 +1751,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 3 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1499,12 +1773,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 3 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1522,12 +1796,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 2 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1544,12 +1818,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 2 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1570,12 +1844,12 @@ ID_64 seems to have a moderatley strong negative correlation between acceleratio
 ```{r Per Athlete Jump Load Correlations}
 # JUMP LOAD
 # Average 7 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1592,12 +1866,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 7 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1615,12 +1889,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 3 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1637,12 +1911,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 3 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1660,12 +1934,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 2 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1682,12 +1956,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 2 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1704,211 +1978,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 # This allows us to see which athlete's RSI scores are most effected by the prior week's load
 ```
+ID_64 has a moderately strong negative correlation between Jump Load and RSI
+
+The per-athlete correlations demonstrate how load effects athletes in different ways, highlighting that generalizations made to the whole team should be received carefully.
 
 
 
-
-```{r}
-
-set.seed(42)
-
-# Create grouped 5-fold CV splits by anon_id
-cv_splits <- group_vfold_cv(load_and_RSI, group = anon_id, v = 5)
-
-# Mixed Effects Model with standardized predictors
-cv_mixed <- function(split) {
-  train <- training(split)
-  test <- testing(split)
-
-  # Manually standardize using training stats
-  mean_accel <- mean(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
-  sd_accel   <- sd(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
-
-  mean_jump  <- mean(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
-  sd_jump    <- sd(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
-
-  train <- train %>%
-    mutate(
-      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
-      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
-    )
-
-  test <- test %>%
-    mutate(
-      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
-      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
-    )
-
-  model <- lmer(RSI ~ z_avg_accel + z_avg_jump + (1 | anon_id), data = train)
-  preds <- predict(model, newdata = test, allow.new.levels = TRUE)
-
-  rmse_vec(truth = test$RSI, estimate = preds)
-}
-
-# GAM Model with standardized predictors
-cv_gam <- function(split) {
-  train <- training(split)
-  test <- testing(split)
-
-  # Manually standardize using training stats
-  mean_accel <- mean(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
-  sd_accel   <- sd(train$Last.Week..Avg..Accel.Load, na.rm = TRUE)
-
-  mean_jump  <- mean(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
-  sd_jump    <- sd(train$Last.Week..Avg..Jump.Load, na.rm = TRUE)
-
-  train <- train %>%
-    mutate(
-      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
-      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
-    )
-
-  test <- test %>%
-    mutate(
-      z_avg_accel = (Last.Week..Avg..Accel.Load - mean_accel) / sd_accel,
-      z_avg_jump  = (Last.Week..Avg..Jump.Load - mean_jump) / sd_jump
-    )
-
-  model <- gam(RSI ~ s(z_avg_accel) + s(z_avg_jump), data = train)
-  preds <- predict(model, newdata = test)
-
-  rmse_vec(truth = test$RSI, estimate = preds)
-}
-
-# Run CV for both models
-mixed_rmses <- map_dbl(cv_splits$splits, cv_mixed)
-gam_rmses   <- map_dbl(cv_splits$splits, cv_gam)
-
-# Summary table of mean RMSEs
-tibble(
-  Model = c("Mixed Effects (standardized)", "GAM (standardized)"),
-  Mean_RMSE = c(mean(mixed_rmses, na.rm = TRUE), mean(gam_rmses, na.rm = TRUE))
-)
-
-```
-
-```{r}
-# Fit fixed effects model on full data
-avg_fixed_model <- lm(RSI ~ Last.Week..Avg..Accel.Load + Last.Week..Avg..Jump.Load + factor(anon_id),
-                  data = load_and_RSI)
-
-# View summary
-summary(avg_fixed_model)
-
-```
-
-```{r total models}
-set.seed(42)
-
-# Create grouped 5-fold CV splits by anon_id
-cv_splits <- group_vfold_cv(load_and_RSI, group = anon_id, v = 5)
-
-# Mixed Effects Model with standardized total load predictors
-cv_mixed_total <- function(split) {
-  train <- training(split)
-  test <- testing(split)
-
-  # Manually standardize using training stats
-  mean_accel <- mean(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
-  sd_accel   <- sd(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
-
-  mean_jump  <- mean(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
-  sd_jump    <- sd(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
-
-  train <- train %>%
-    mutate(
-      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
-      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
-    )
-
-  test <- test %>%
-    mutate(
-      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
-      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
-    )
-
-  model <- lmer(RSI ~ z_total_accel + z_total_jump + (1 | anon_id), data = train)
-  preds <- predict(model, newdata = test, allow.new.levels = TRUE)
-
-  rmse_vec(truth = test$RSI, estimate = preds)
-}
-
-# GAM Model with standardized total load predictors
-cv_gam_total <- function(split) {
-  train <- training(split)
-  test <- testing(split)
-
-  # Manually standardize using training stats
-  mean_accel <- mean(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
-  sd_accel   <- sd(train$Last.Week..Total..Accel.Load, na.rm = TRUE)
-
-  mean_jump  <- mean(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
-  sd_jump    <- sd(train$Last.Week..Total..Jump.Load, na.rm = TRUE)
-
-  train <- train %>%
-    mutate(
-      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
-      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
-    )
-
-  test <- test %>%
-    mutate(
-      z_total_accel = (Last.Week..Total..Accel.Load - mean_accel) / sd_accel,
-      z_total_jump  = (Last.Week..Total..Jump.Load - mean_jump) / sd_jump
-    )
-
-  model <- gam(RSI ~ s(z_total_accel) + s(z_total_jump), data = train)
-  preds <- predict(model, newdata = test)
-
-  rmse_vec(truth = test$RSI, estimate = preds)
-}
-
-# Run CV for both models with total loads
-mixed_rmses_total <- map_dbl(cv_splits$splits, cv_mixed_total)
-gam_rmses_total   <- map_dbl(cv_splits$splits, cv_gam_total)
-
-# Summary table of mean RMSEs
-tibble(
-  Model = c("Mixed Effects (standardized total load)", "GAM (standardized total load)"),
-  Mean_RMSE = c(mean(mixed_rmses_total, na.rm = TRUE), mean(gam_rmses_total, na.rm = TRUE))
-)
-
-# Fit fixed effects model on full data with total load predictors
-fixed_model_total <- lm(RSI ~ Last.Week..Total..Accel.Load + Last.Week..Total..Jump.Load + factor(anon_id),
-                        data = load_and_RSI)
-
-summary(fixed_model_total)
-
-
-
-```
-
-
-
-
-```{r}
-# Calculate optimal load zones
-load_zones <- load_and_RSI %>%
-  summarize(
-    accel_optimal_low = quantile(`TD-6..Avg..Accel.Load`, 0.25, na.rm = TRUE),
-    accel_optimal_high = quantile(`TD-6..Avg..Accel.Load`, 0.75, na.rm = TRUE),
-    rsi_optimal = quantile(RSI, 0.75, na.rm = TRUE)
-  )
-
-ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.3) +
-  geom_vline(xintercept = load_zones$accel_optimal_low, linetype = "dashed") +
-  geom_vline(xintercept = load_zones$accel_optimal_high, linetype = "dashed") +
-  geom_hline(yintercept = load_zones$rsi_optimal, linetype = "dashed") +
-  annotate("rect", 
-           xmin = load_zones$accel_optimal_low, 
-           xmax = load_zones$accel_optimal_high,
-           ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#CFB87C") +
-  labs(title = "Optimal Load Zone for RSI",
-       subtitle = "Shaded area shows load range associated with top 25% RSI scores")
-
-
-```
 ### Question 4
 
 #### What is each athlete's variation in RSI? What is a meaningful change in RSI for the team and for individual athletes?
