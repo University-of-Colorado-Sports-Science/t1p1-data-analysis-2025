@@ -9,7 +9,7 @@ output: html_notebook
 
 #Purpose: The purpose of this notebook is to house all data set transformation, cleansing, visualization, statistical analysis, and note-taking for the 2025 CU Athletic Department Sports Science Internship Program
 
-#LAST UPDATED: 6/12/2025
+#LAST UPDATED: 7/7/2025
 
 #Including helpful libraries
 library(tidyverse)
@@ -61,7 +61,7 @@ kinexon_session <- read.csv("data-sets/data-sets-uncompressed/data-sets-compress
 
 ```{r clean stats dataset}
 # Remove columns where all data points are NA
-stats_clean <- stats |>
+stats_clean <- stats %>%
   dplyr::select(where(~ !all(is.na(.))))
 
 
@@ -69,7 +69,7 @@ stats_clean <- stats |>
 if (all(stats_clean$Date == stats_clean$Date.Reverse, na.rm = TRUE) &&
     all(stats_clean$Date == stats_clean$Session.Date, na.rm = TRUE)) {
   
-  stats_clean <- stats_clean |>
+  stats_clean <- stats_clean %>%
     dplyr::select(-c(Date.Reverse, Session.Date))
 }
 
@@ -124,7 +124,7 @@ stats_clean <- stats_clean %>%
 
 ```{r clean kinexon_ACWR dataset}
 # Remove columns where all data points are NA
-kinexon_ACWR_clean <- kinexon_ACWR |>
+kinexon_ACWR_clean <- kinexon_ACWR %>%
   dplyr::select(where(~ !all(is.na(.))))
 
 
@@ -133,7 +133,7 @@ kinexon_ACWR_clean <- kinexon_ACWR |>
 if (all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Date.Reverse, na.rm = TRUE) &&
     all(kinexon_ACWR_clean$Date == kinexon_ACWR_clean$Session.Date, na.rm = TRUE)) {
   
-  kinexon_ACWR_clean <- kinexon_ACWR_clean |>
+  kinexon_ACWR_clean <- kinexon_ACWR_clean %>%
     dplyr::select(-c(Date.Reverse, Session.Date))
 }
 
@@ -198,7 +198,7 @@ VALD_ForceDecks_clean <- VALD_ForceDecks %>%
 
 ```{r kinexon session mbb cleaning}
 # Remove columns where all data points are NA
-kinexon_session_clean <- kinexon_session |>
+kinexon_session_clean <- kinexon_session %>%
   dplyr::select(where(~ !all(is.na(.))))
 
 
@@ -212,7 +212,7 @@ class(kinexon_session_clean$Date)
 
 
 # Filter to only include data from this season
-kinexon_session_clean <- kinexon_session_clean |>
+kinexon_session_clean <- kinexon_session_clean %>%
   filter(Date >= as.Date("2024-6-01"))
 ```
 
@@ -869,21 +869,21 @@ For the models that are predicting whether a game will be a "good game" or not, 
 # Recalculating the Gameday.Minus.N.Acceleration.Load Columns
 
 # Create a df with relevant columns and add column specifying if that day was a game or not
-daily_load <- kinexon_session_clean |>
-  mutate(Game.Day = if_else(Type == "Game", 1, 0)) |>
-  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
-  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) |>
+daily_load <- kinexon_session_clean %>%
+  mutate(Game.Day = if_else(Type == "Game", 1, 0)) %>%
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) %>%
+  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Game.Day) %>%
   arrange(anon_id, Date)
 
 # Get all game day dates per player as a lookup table
-game_days <- daily_load |>
-  filter(Game.Day == 1) |>
+game_days <- daily_load %>%
+  filter(Game.Day == 1) %>%
   dplyr::select(anon_id, Game.Date = Date)
     
 
 # Add column Day.Type for GD-1 - GD-4 and gamedays
-daily_load <- daily_load |>
-  left_join(game_days, by = "anon_id", relationship = "many-to-many") |>
+daily_load <- daily_load %>%
+  left_join(game_days, by = "anon_id", relationship = "many-to-many") %>%
   mutate(
     Days.Until.Game = as.numeric(difftime(Game.Date, Date, units = "days")),
     Day.Type = case_when(
@@ -894,12 +894,12 @@ daily_load <- daily_load |>
       Game.Day == 1 ~ "GameDay",
       TRUE ~ NA_character_
     )
-  ) |>
-  filter(!is.na(Day.Type)) |>    # keep only rows within 4 days before game
+  ) %>%
+  filter(!is.na(Day.Type)) %>%    # keep only rows within 4 days before game
   dplyr::select(-Game.Date, -Days.Until.Game)
 
 # Add columns for Gameday.Minus.N.Acceleration.Load
-Gameday_Minus <- daily_load |>
+Gameday_Minus <- daily_load %>%
   mutate(
     Gameday.Minus.1.Acceleration.Load = if_else(Day.Type == "GD-1", Daily.Total.Accel.Load.Accum, NA_real_),
     Gameday.Minus.2.Acceleration.Load = if_else(Day.Type == "GD-2", Daily.Total.Accel.Load.Accum, NA_real_),
@@ -909,7 +909,7 @@ Gameday_Minus <- daily_load |>
   )
 
 # Delete duplicate rows
-Gameday_Minus <- Gameday_Minus |>
+Gameday_Minus <- Gameday_Minus %>%
   distinct()
 
 ```
@@ -918,9 +918,9 @@ Gameday_Minus <- Gameday_Minus |>
 # Create columns for Average.Gameday.Minus.N.Acceleration.Load
 
 # Calculate and add columns for running averages
-Gameday_Minus <- Gameday_Minus |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
+Gameday_Minus <- Gameday_Minus %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
   mutate(
     # Cumulative count and sum for GD-1
     cum_count_gd1 = cumsum(!is.na(Gameday.Minus.1.Acceleration.Load)),
@@ -957,8 +957,8 @@ Gameday_Minus <- Gameday_Minus |>
       cum_sum_gd4 / cum_count_gd4,
       NA_real_
     )
-  ) |>
-  ungroup() |>
+  ) %>%
+  ungroup() %>%
   dplyr::select(-starts_with("cum_count_"), -starts_with("cum_sum_")) # clean up columns
 
 ```
@@ -966,9 +966,9 @@ Gameday_Minus <- Gameday_Minus |>
 ```{r Average.Gameday.Acceleration.Load}
 # Calculate running averages of Gameday.Acceleration.Load and add column Average.Gameday.Acceleration.Load
 
-Gameday_Minus <- Gameday_Minus |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
+Gameday_Minus <- Gameday_Minus %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
   mutate(
     cum_count_gd = cumsum(!is.na(GameDay.Acceleration.Load)),
     cum_sum_gd = cumsum(replace_na(GameDay.Acceleration.Load, 0)),
@@ -977,8 +977,8 @@ Gameday_Minus <- Gameday_Minus |>
       cum_sum_gd / cum_count_gd,
       NA_real_
     )
-  ) |>
-  ungroup() |>
+  ) %>%
+  ungroup() %>%
   dplyr::select(-cum_count_gd, -cum_sum_gd) # clean up columns
 
 ```
@@ -989,32 +989,35 @@ Gameday_Minus <- Gameday_Minus |>
 
 ```{r Load vs. RSI}
 # Filter to only have data from this season
-RSI <- VALD_ForceDecks_clean |>
-  filter(Date >= as.Date("2024-10-10")) |>
-  dplyr::select(anon_id, Date, RSI..m.per.s., Trial) |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id, Date) |>
-  mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) |>
+# select relevant columns for question
+# add Daily.Avg.RSI..m.per.s column
+RSI <- VALD_ForceDecks_clean %>%
+  filter(Date >= as.Date("2024-10-10")) %>%
+  dplyr::select(anon_id, Date, RSI..m.per.s., Trial) %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id, Date) %>%
+  mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) %>%
   ungroup()
 
 
-# Plot RSI over season
-ggplot(RSI, aes(x=Date, y=Daily.Avg.RSI..m.per.s, color=anon_id)) +
+# Plot RSI over season by colored athlete and with a smooth
+ggplot(RSI, aes(x = Date, y = Daily.Avg.RSI..m.per.s, color = anon_id)) +
   geom_point() +
   geom_smooth(method="lm", se=FALSE) +
   labs(title = "Athlete RSI Scores Throughout Season") +
   theme_classic()
 
 
-# Create load data frame containing columns relevant to load
-load <- kinexon_session_clean |>
-  filter(Date >= as.Date("2024-10-10")) |>
-  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) |>
+# Create load data frame containing columns relevant to load from this season
+# Filter out NAs
+load <- kinexon_session_clean %>%
+  filter(Date >= as.Date("2024-10-10")) %>%
+  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) %>%
   filter(!is.na(Daily.Total.Accel.Load.Accum))
 
 
 # Look into Daily Acceleration Load for one athlete
-id_40_load <- load |>
+id_40_load <- load %>%
   filter(anon_id == "ID_40")
 # Plot of ID_40's Daily Accel Load
 ggplot(data = id_40_load, aes(x = Date, y = Daily.Total.Accel.Load.Accum)) +
@@ -1047,19 +1050,19 @@ The graphs seem to show that for most athletes, RSI scores increased throughout 
 
 ## Last 7 days not last 7 sessions
 # Include that day in the last 7. (That day and the 6 days before that day, total of 7)
-rolling_NDay_load <- load |>
-  filter(!is.na(Daily.Total.Accel.Load.Accum)) |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- load %>%
+  filter(!is.na(Daily.Total.Accel.Load.Accum)) %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_week <- athlete_data |>
+      past_week <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(7)) # (<=) includes that day in the last 7.
       
-      current_row |>
+      current_row %>%
         mutate(
           Avg..7Day..Accel.Load = mean(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..7Day..Accel.Load = sum(past_week$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1074,18 +1077,18 @@ rolling_NDay_load <- load |>
 
 # Add 3 Day Load
 # That day and the two days before it
-rolling_NDay_load <- rolling_NDay_load |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- rolling_NDay_load %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_3days <- athlete_data |>
+      past_3days <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(3))  # includes current day
 
-      current_row |>
+      current_row %>%
         mutate(
           Avg..3Day..Accel.Load = mean(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..3Day..Accel.Load = sum(past_3days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1100,18 +1103,18 @@ rolling_NDay_load <- rolling_NDay_load |>
 
 # Add 2 Day Load
 # That day and the day before it
-rolling_NDay_load <- rolling_NDay_load |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id) |>
-  group_split() |>
+rolling_NDay_load <- rolling_NDay_load %>%
+  arrange(anon_id, Date) %>%
+  group_by(anon_id) %>%
+  group_split() %>%
   map_dfr(~{
     athlete_data <- .
     map_dfr(seq_len(nrow(athlete_data)), function(i) {
       current_row <- athlete_data[i, ]
-      past_2days <- athlete_data |>
+      past_2days <- athlete_data %>%
         filter(Date <= current_row$Date & Date > current_row$Date - days(2))  # includes current day
 
-      current_row |>
+      current_row %>%
         mutate(
           Avg..2Day..Accel.Load = mean(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
           Total..2Day..Accel.Load = sum(past_2days$Daily.Total.Accel.Load.Accum, na.rm = TRUE),
@@ -1125,20 +1128,20 @@ rolling_NDay_load <- rolling_NDay_load |>
 ```
 
 ```{r merge}
-RSI_daily_avg <- RSI |>
+RSI_daily_avg <- RSI %>%
   distinct(anon_id, Date, Daily.Avg.RSI..m.per.s)
 
 # Merge the RSI and rolling day load data frames
-load_and_RSI <- RSI_daily_avg |>
+load_and_RSI <- RSI_daily_avg %>%
   left_join(
     rolling_NDay_load,
     by = "anon_id",
     relationship = "many-to-many"
-  ) |>
-  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) |> # <= includes same day. On days when RSI and accel load are measured, accel load is measured first, meaning we should include it.
+  ) %>%
+  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) %>% # <= includes same day. On days when RSI and accel load are measured, accel load is measured first, meaning we should include it.
   group_by(anon_id, Date.x) |>
   slice_max(Date.y, n = 1) |>  # Keep the most recent load data before RSI
-  ungroup() |>
+  ungroup() %>%
   rename(
     RSI_Date = Date.x,
     Load_Date = Date.y,
@@ -1147,7 +1150,7 @@ load_and_RSI <- RSI_daily_avg |>
 
 
 # Now that only have load data for N days before a test (and that day) we rename the columns
-load_and_RSI <- load_and_RSI |> rename(
+load_and_RSI <- load_and_RSI %>% rename(
   `TD-6..Avg..Accel.Load` = Avg..7Day..Accel.Load,
   `TD-6..Total..Accel.Load` = Total..7Day..Accel.Load,
   `TD-6..Avg..Jump.Load` = Avg..7Day..Jump.Load,
@@ -1171,13 +1174,47 @@ load_and_RSI <- load_and_RSI |> rename(
 
 ```
 
+
+```{r Correlation}
+# Correlation Tests for each variable vs RSI
+
+load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
+
+# Calculate overall Pearson correlations for each variable
+overall_corrs <- map_dfr(load_vars, ~ {
+  load_and_RSI %>%
+    summarize(
+      r = cor(RSI, .data[[.x]], use = "complete.obs"),
+      n = n()
+    ) |> 
+    mutate(variable = .x)
+})
+
+# Basic plot (no theming)
+ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
+  geom_col(fill = "#CFB87C") +
+  geom_text(aes(label = round(r, 2)), 
+            hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
+            size = 3) +
+  coord_flip() +
+  labs(title = "Correlation Between Load Metrics and RSI",
+       x = "Load Metric",
+       y = "Pearson Correlation (r)") +
+  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
+  theme_classic()
+
+
+```
+Jump Load seems to be more correlated and even positively correlated than acceleration load.
+
+
 ```{r }
 # Check for multicollinearity by examining pairwise correlations
 # This helps identify redundant variables before modeling
 
 # 1. Compute correlation matrix for RSI and all training load variables
 cor_matrix <- cor(
-  load_and_RSI |> dplyr::select(RSI, starts_with("TD")),
+  load_and_RSI %>% dplyr::select(RSI, starts_with("TD")),
   use = "complete.obs"
 )
 
@@ -1213,7 +1250,7 @@ lm_avg <- lm(RSI ~ `TD-6..Avg..Accel.Load` + `TD-6..Avg..Jump.Load` +
                      `TD-1..Avg..Accel.Load` + `TD-1..Avg..Jump.Load`,
               data = load_and_RSI)
 
-# Model of only total load varaibles from each window
+# Model of only total load variables from each window
 lm_total <- lm(RSI ~ `TD-6..Total..Accel.Load` + `TD-6..Total..Jump.Load` +
                      `TD-2..Total..Accel.Load` + `TD-2..Total..Jump.Load` +
                      `TD-1..Total..Accel.Load` + `TD-1..Total..Jump.Load`,
@@ -1243,7 +1280,7 @@ AIC(lm_avg, lm_total, lm_full, model_step_avg, model_step_total, model_step)
 
 summary(model_step)
 ```
-The model with the lowest AIC is model_step which is an AIC stepwise model of the lm_full model. This final model includes 7 load-based predictors from across the previous 7 days. Several predictors were statistically significant, with both postive and negative associations with RSI, suggesting a measurable relationship between prior training load and RSI.
+The model with the lowest AIC is model_step which is an AIC stepwise model of the lm_full model. This final model includes 7 load-based predictors from across the previous 7 days. Several predictors were statistically significant, with both positive and negative associations with RSI, suggesting a measurable relationship between prior training load and RSI.
     Higher 6 day average acceleration load is significantly associated with lower RSI. Estimate = -0.00182. For every unit increase in 6 day average acceleration load, the model predicts a 0.00182 decrease in RSI.
     Higher 6 day average and 1 day total jump loads are associated with higher RSI. TD-6..Avg..Jump.Load estimate = 0.0000306. TD-1..Total..Jump.Load = 0.0000196
     Higher 1-day total acceleration load and 1-day average jump load are associated with lower RSI (Estimates = –0.000804 and –0.0000261)
@@ -1598,7 +1635,7 @@ Jump load was a little more non consistent than acceleration load. Based on our 
 
 
 ```{r RSI vs. 7 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
 # 7-Day
 unique_ids <- unique(load_and_RSI$anon_id)
 
@@ -1615,7 +1652,7 @@ for (id in unique_ids) {
 }
 ```
 ```{r RSI vs. 3 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
 # 3-Day
 
 for (id in unique_ids) {
@@ -1624,7 +1661,7 @@ for (id in unique_ids) {
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     labs(title = paste("RSI vs. Average Acceleration Load (3-Day):", id),
-         x = "Average Load",
+         x = "Average Acceleration Load",
          y = "RSI")
    print(p)
    
@@ -1633,8 +1670,8 @@ for (id in unique_ids) {
 
 
 ```{r RSI vs. 2 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the realtionship between RSI and average acceleration load
-# 3-Day
+# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
+# 2-Day
 
 for (id in unique_ids) {
   p <- ggplot(filter(load_and_RSI, anon_id == id),
@@ -1642,56 +1679,26 @@ for (id in unique_ids) {
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     labs(title = paste("RSI vs. Average Acceleration Load (2-Day):", id),
-         x = "Average Load",
+         x = "Average Acceleration Load",
          y = "RSI")
    print(p)
    
 }
 ```
 
-```{r Correlation}
-# Correlation Tests for each variable vs RSI
 
-load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
-
-# Calculate overall Pearson correlations for each variable
-overall_corrs <- map_dfr(load_vars, ~ {
-  load_and_RSI |> 
-    summarize(
-      r = cor(RSI, .data[[.x]], use = "complete.obs"),
-      n = n()
-    ) |> 
-    mutate(variable = .x)
-})
-
-# Basic plot (no theming)
-ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
-  geom_col(fill = "#CFB87C") +
-  geom_text(aes(label = round(r, 2)), 
-            hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
-            size = 3) +
-  coord_flip() +
-  labs(title = "Correlation Between Load Metrics and RSI",
-       x = "Load Metric",
-       y = "Pearson Correlation (r)") +
-  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
-  theme_classic()
-
-
-```
-Jump Load seems to be more correlated and even positively correlated than acceleration load.
 
 ```{r Per Athlete Accel Load Correlations}
 # Per athlete accel load correlations with RSI
 
 # ACCEL LOAD:
 # Average 7 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1708,12 +1715,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 7 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1731,12 +1738,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 3 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1753,12 +1760,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 3 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1776,12 +1783,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 2 day accel load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Avg..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1798,12 +1805,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 2 day accel load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Total..Accel.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1824,12 +1831,12 @@ ID_64 seems to have a moderatley strong negative correlation between acceleratio
 ```{r Per Athlete Jump Load Correlations}
 # JUMP LOAD
 # Average 7 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1846,12 +1853,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 7 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-6..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1869,12 +1876,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 3 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1891,12 +1898,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 3 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-2..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1914,12 +1921,12 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Average 2 day jump load
-per_athlete_corrs_avg <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_avg <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Avg..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
@@ -1936,12 +1943,12 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
 
 
 # Total 2 day jump load
-per_athlete_corrs_total <- load_and_RSI |>
-  group_by(anon_id) |>
+per_athlete_corrs_total <- load_and_RSI %>%
+  group_by(anon_id) %>%
   summarize(
     r = cor(RSI, `TD-1..Total..Jump.Load`, use = "complete.obs"),
     n = n()
-  ) |>
+  ) %>%
   arrange(r)
 
 ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
@@ -1960,7 +1967,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
 ```
 ID_64 has a moderately strong negative correlation between Jump Load and RSI
 
-
+The per-athlete correlations demonstrate how load effects athletes in different ways, highlighting that generalizations made to the whole team should be received carefully.
 
 
 
