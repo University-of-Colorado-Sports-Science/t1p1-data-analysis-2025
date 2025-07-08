@@ -1018,7 +1018,15 @@ ggplot(data = load, aes(x=Date, y=Daily.Total.Accel.Load.Accum, color=anon_id)) 
   geom_point() +
   geom_smooth(method = "loess", se = FALSE) +
   geom_smooth(aes(group = 1), color = "black", se = FALSE, method = "loess") + # Whole team smooth
-  labs(title = "2024-25 Baskteball Athlete's Daily Acceleration Load") +
+  labs(title = "Daily Acceleration Load by Athlete Over the Season") +
+  theme_classic()
+
+
+# Plot of accel load throughout season
+ggplot(data = load, aes(x=Date, y=Daily.Total.Accel.Load.Accum)) +
+  geom_point(alpha = 0.5, color="#565A5C") +
+  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C", linewidth = 1.3) +
+  labs(title = "Daily Acceleration Over the Season") +
   theme_classic()
 
 
@@ -1027,7 +1035,14 @@ ggplot(data = load, aes(x=Date, y=Jump.Load, color=anon_id)) +
   geom_point() +
   geom_smooth(method = "loess", se = FALSE) + # Athlete smooths
   geom_smooth(aes(group = 1), color = "black", se = FALSE, method = "loess") + # Whole team smooth
-  labs(title = "2024-25 Baskteball Athlete's Daily Jump Load") +
+  labs(title = "Daily Jump Load by Athlete Over the Season") +
+  theme_classic()
+
+# Jump Load throughout season
+ggplot(data = load, aes(x=Date, y=Jump.Load)) +
+  geom_point(alpha = 0.5, color="#565A5C") +
+  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C", linewidth = 1.3) + 
+  labs(title = "Daily Jump Load Over the Season") +
   theme_classic()
 ```
 The graphs seem to show that for most athletes, RSI scores increased throughout the season, while daily acceleration load decreased and jump load about stayed the same.
@@ -1166,6 +1181,19 @@ load_and_RSI <- load_and_RSI %>% rename(
 ```{r Correlation}
 # Correlation Tests for each variable vs RSI
 
+# Clean names for plot
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>%
+    trimws()
+}
+
+
 # Define load metrics to test for correlation with RSI
 load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
@@ -1177,10 +1205,11 @@ overall_corrs <- map_dfr(load_vars, ~ {
       n = n()
     ) %>%
     mutate(variable = .x) # Add variable name as column
-})
+}) %>%
+  mutate(name=clean_load_var_name(variable))
 
 # Plot the correlation coefficients as horizontal bars
-ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
+ggplot(overall_corrs, aes(x = reorder(name, r), y = r)) +
   geom_col(fill = "#CFB87C") +
   geom_text(aes(label = round(r, 2)), # Add text labels of r values
             hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
@@ -1189,7 +1218,6 @@ ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
   labs(title = "Correlation Between Load Metrics and RSI",
        x = "Load Metric",
        y = "Pearson Correlation (r)") +
-  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
   theme_classic()
 ```
 Jump Load seems to be more correlated and even positively correlated than acceleration load.
@@ -1285,34 +1313,34 @@ The model with the lowest AIC is model_step which is an AIC stepwise model of th
 # AVERAGE ACCEL LOAD:
 # Relationship between RSI and 7-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Accel Load",
-    x = "7-Day Avg Accel Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Average Acceleration Load",
+    x = "7-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # Relationship between RSI and 3-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Accel Load",
-    x = "3-Day Avg Accel Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Average Acceleration Load",
+    x = "3-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # Relationship between RSI and 2-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Accel Load",
-    x = "2-Day Avg Accel Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Average Acceleration Load",
+    x = "2-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
@@ -1320,12 +1348,12 @@ ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
 # TOTAL ACCEL LOAD:
 # RSI and 7-Day Total Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-6..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Total Accel Load",
-    x = "7-Day Total Accel Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Total Acceleration Load",
+    x = "7-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
@@ -1334,20 +1362,20 @@ ggplot(load_and_RSI, aes(x = `TD-2..Total..Accel.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Total Accel Load",
-    x = "3-Day Total Accel Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Total Acceleration Load",
+    x = "3-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # RSI and 2-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Total Accel Load",
-    x = "2-Day Total Accel Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Total Acceleration Load",
+    x = "2-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 ```
@@ -1390,11 +1418,28 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
 # Identify and plot optimal load zones for Average Acceleration load
 # This will give us zones that produce the highest average RSI scores for that time window.
 
+# Function to clean variable names for plot titles
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("Accel", "Acceleration", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>% 
+    gsub("Accel Load", "Accel Load", .) %>%
+    gsub("Jump Load", "Jump Load", .) %>%
+    trimws()
+}
+
 # Define variables to analyze
 load_vars <- c("TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
 # Create individual plots for each variable
 for (load_var in load_vars) {
+  
+  name <- clean_load_var_name(load_var)
   
   # Calculate optimal zone
   optimal_zone <- load_and_RSI %>%
@@ -1414,9 +1459,8 @@ for (load_var in load_vars) {
     slice(1)
   
   # Generate plot
-  # Scatter plot of RSI per time window with an "optimal load zone"
   p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
-    geom_point(alpha = 0.3, color = "#565A5C") +
+    geom_point(alpha = 0.5, color = "#565A5C") +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     geom_vline(
       xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
@@ -1427,15 +1471,15 @@ for (load_var in load_vars) {
       xmax = optimal_zone$bin_end,
       ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#60D272") +
     labs(
-      title = paste("Optimal Zone for", load_var),
-      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+      title = paste("Optimal Zone for", name),
+      subtitle = paste(optimal_zone$bin_label, 
                       "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
-      x = "Average Acceleration Load",
+      x = pretty_name,
       y = "RSI"
     ) +
     theme_classic()
   
-    print(p)
+  print(p)
 }
 ```
 From these plots, we can confidently conclude that an "optimal" daily average acceleration load should fall between 785-835 for 2 and 3 days before a test and 815-865 for 7 days before a test. These ranges produced the highest average RSI scores for their respective windows.
@@ -1450,34 +1494,34 @@ From these plots, we can confidently conclude that an "optimal" daily average ac
 # AVERAGE JUMP LOADS:
 # RSI and 7-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Jump Load",
-    x = "7-Day Avg Jump Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Average Jump Load",
+    x = "7-Day Average Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # RSI and 3-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-2..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Jump Load",
-    x = "3-Day Avg Jump Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Average Jump Load",
+    x = "3-Day Avg Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # RSI and 2-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Jump Load",
-    x = "2-Day Avg Jump Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Average Jump Load",
+    x = "2-Day Avg Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
@@ -1485,36 +1529,36 @@ ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
 # TOTAL JUMP LOADS:
 # RSI and 7-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 7-Day Total Jump Load",
-    x = "7-Day Total Jump Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    x = "7-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 
 # RSI and 3-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-2..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 3-Day Total Jump Load",
-    x = "3-Day Total Jump Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    x = "3-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 
 # RSI and 2-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-1..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 2-Day Total Jump Load",
-    x = "2-Day Total Jump Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    x = "2-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 ```
@@ -1567,11 +1611,25 @@ Each graph showed low RSI scores at moderate low load levels with an increase af
 ```{r optimal jump load zones}
 # Optimal load zones for average Jump Load
 
+# Function to clean variable names for plot titles
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>% 
+    trimws()
+}
+
 # Define variables to analyze
 load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load")
 
 # Create individual analysis and plots for each variable
 for (load_var in load_vars) {
+  
+    name <- clean_load_var_name(load_var)
   
   # Calculate optimal zone
   optimal_zone <- load_and_RSI %>%
@@ -1593,7 +1651,7 @@ for (load_var in load_vars) {
   # Generate plots
   # Scatter plot with an "optimal zone"
   p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
-    geom_point(alpha = 0.3, color = "gray50") +
+    geom_point(alpha = 0.5, color = "#565A5C") +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     geom_vline(
       xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
@@ -1605,8 +1663,8 @@ for (load_var in load_vars) {
       ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
     ) +
     labs(
-      title = paste("Optimal Zone for", load_var),
-      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+      title = paste("Optimal Zone for", name),
+      subtitle = paste(optimal_zone$bin_label, 
                       "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
       x = "Average Jump Load",
       y = "RSI"
@@ -1615,7 +1673,6 @@ for (load_var in load_vars) {
   
   print(p)
 }
-
 ```
 Jump load was a little more non consistent than acceleration load. Based on our calculations and visualizations we were not able to find conclusive evidence that supports optimal jump load zones.
 
@@ -1631,13 +1688,14 @@ for (id in unique_ids) {
               aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-    labs(title = paste("RSI vs. Average 7-Day Acceleration Load", id),
+    labs(title = paste("RSI vs. Average 7-Day Acceleration Load:", id),
          x = "Average 7-Day Acceleration Load",
          y = "RSI")
    print(p)
    
 }
 ```
+
 ```{r RSI vs. 3 day Average Acceleration Load per Athlete}
 # Plot for each athlete that shows the relationship between RSI and average 3-day acceleration load
 
