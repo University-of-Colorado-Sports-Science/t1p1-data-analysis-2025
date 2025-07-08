@@ -475,6 +475,7 @@ summary(Q1_model_good_game)
 ### Changed threshold to 0.43 based off of ROC curve done below
 Q1_test$Team.Good.Pred <- ifelse(predict.glm(Q1_model_good_game, Q1_test, type="response") >0.46,1,0)
 
+#calculating the CER of the model
 Q1_test %>%
   summarize(CER = mean(na.omit(Team.Good.Pred != Team.Good.Game)))
 ```
@@ -487,6 +488,7 @@ summary(Q1_model_bad_game)
 #making prediction based on the model and calculating the CER for the model on test data
 Q1_test$Team.Bad.Pred <- ifelse(predict.glm(Q1_model_bad_game, Q1_test, type="response") >0.05,1,0)
 
+#calculating CER of the model
 Q1_test %>%
   summarize(CER = mean(na.omit(Team.Bad.Pred != Team.Bad.Game)))
 
