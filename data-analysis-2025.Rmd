@@ -2133,5 +2133,4 @@ VALD_ForceDecks_clean %>%
   group_by(anon_id) %>%
   summarize(mean_RSI = mean(Player.Average.RSI..m.per.s.),
             SD_RSI = sd(Player.Average.RSI..m.per.s.))
-
 ```
