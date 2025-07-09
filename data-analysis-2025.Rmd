@@ -248,10 +248,7 @@ ggplot(data = current_season ,aes(Date, Team.Average.RSI..m.per.s.)) +
   geom_line(linewidth = 0.75) +
   geom_hline(yintercept = team_mean) +
   geom_hline(yintercept = team_mean + sqrt(team_var), color="#CFB87C") +
-  geom_hline(yintercept = team_mean - sqrt(team_var), color="#CFB87C") +
-  labs(title="Team Average RSI through 2024-2025 Season",
-       x="Date",
-       y="RSI (m/s)")
+  geom_hline(yintercept = team_mean - sqrt(team_var), color="#CFB87C")
 
 #looking at the adjusted correlations of the team averages to see if there is any correlation with time
 cor(x = current_season$X, y = current_season$Team.Average.RSI..m.per.s., method = "kendall")
@@ -303,6 +300,9 @@ current_season <- current_season %>%
   mutate(Player.RSI.Increase = ifelse(Change.Player.Average.RSI..m.per.s. > 0, 1, 0))
 ```
 
+
+
+
 ```{r Plotting game outcomes throughout the season with average team RSI}
 #plotting regular game outcomes against RSI values
 ggplot(current_season, aes(Date, Team.Average.RSI..m.per.s.)) +
@@ -323,32 +323,18 @@ The data was smoothed with a moving average process which removed some of the no
 #plotting the change in team average RSI throughout the season
 ggplot(data = current_season, aes(x=Date, y=Change.Team.Average.RSI..m.per.s.)) +
   geom_point() +
-  geom_hline(yintercept = 0,
-             color = "#CFB87C",
-             linewidth = 0.5) +
-  labs(title = "Changes in Average Team RSI through 2024-2025 Season",
-       x="Date",
-       y="Change in RSI (m/s)") + 
-  theme_classic()
+  geom_hline(yintercept = 0)
 
 
 #plotting the changes in team average RSI throughout the season with green games being games where the team performed better than their median performance in explosiveness metrics and red being games where the team performed below median for explosiveness metrics
-
-colors <- c("Above Median Game" = "palegreen3", "Below Median Game" = "red3")
-            
 ggplot(data = current_season, aes(x=Date, y=Change.Team.Average.RSI..m.per.s.)) +
   geom_point() +
-  geom_hline(yintercept = 0,
-             linewidth = 0.5) +
-  geom_vline(xintercept = stats_clean$Date[stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1], color = ifelse(stats_clean[(stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1),]$Team.Good.Game == 1, "palegreen3","red3")) +
-labs(title = "Changes in Average Team RSI with Game Outcomes through the 2024-2025 Season",
-     x="Date",
-     y="Change in RSI (m/s)")+
-  theme_classic()
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = stats_clean$Date[stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1], color = ifelse(stats_clean[(stats_clean$Team.Good.Game ==1 | stats_clean$Team.Bad.Game ==1),]$Team.Good.Game == 1, "palegreen3","red3"))
+#  geom_text(data = stats_clean, x = Date, y = 0.19, label = Date, angle = 90,size = 2.75)
 ```
 
 This plot shows the change in team average RSI measurements throughout the season. Each data point represents how much the average RSI changed from the previous measurement. This plot helps to make sense of how the RSI of the team changed throughout the season. We can see that while increases were more frequent, they were smaller than the drops in RSI that occurred throughout the season. With this though, we can see that there is potentially a relationship between changes in RSI and in team game performance. This is because visually, it seems that games where the team had a "good" game tend to have an increase in RSI measured right before the game and games that are "bad" tend to have a decrease in RSI right before the game or a less dramatic increase in RSI than games that are "good".
-
 
 
 #### Team Explosiveness Metrics
@@ -581,23 +567,10 @@ ggplot(data = current_season[current_season$anon_id == "ID_42",], aes(Date, Play
   geom_line() +
   geom_vline(xintercept = stats_clean$Date[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1)], color = ifelse(stats_clean[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1),]$Player.Good.Game == 1, "palegreen3","red3"))
 
-
-ggplot(data = current_season[current_season$anon_id == "ID_42",], aes(Date, Change.Player.Average.RSI..m.per.s.)) +
-  geom_point() +
-  geom_hline(yintercept=0, color = "#CFB87C") +
-  labs(title="Changes in RSI for \"ID 42\" through the 2024-2025 Season",
-       y="Change in RSI (m/s)") +
-  theme_classic()
-
-
-
 ggplot(data = current_season[current_season$anon_id == "ID_42",], aes(Date, Change.Player.Average.RSI..m.per.s.)) +
   geom_point() +
   geom_hline(yintercept=0) +
-  geom_vline(xintercept = stats_clean$Date[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1)], color = ifelse(stats_clean[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1),]$Player.Good.Game == 1, "palegreen3","red3")) +
-  labs(title="Changes in RSI for \"ID 42\" with Game Outcomes through the 2024-2025 Season",
-       y="Change in RSI (m/s)") +
-  theme_classic()
+  geom_vline(xintercept = stats_clean$Date[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1)], color = ifelse(stats_clean[stats_clean$anon_id == "ID_42" & (stats_clean$Player.Good.Game == 1 | stats_clean$Player.Bad.Game ==1),]$Player.Good.Game == 1, "palegreen3","red3"))
 ```
 
 
@@ -639,7 +612,6 @@ Q1_test$Player.Good.Pooled.Pred <- ifelse(predict(Q2_model_good_game_pooled, Q1_
 #Q1_test %>%
 # summarize(CER = mean(Player.Good.Game != Player.Good.Pooled.Pred))
 ```
-
 
 ```{r making unpooled model for good games}
 #making unpooled model for players
@@ -853,14 +825,6 @@ For the models that are predicting whether a game will be a "good game" or not, 
 
 ```{r Load vs. RSI}
 # Filter to only have data from this season
-
-RSI <- VALD_ForceDecks_clean |>
-  filter(Date >= as.Date("2024-10-10")) |>
-  dplyr::select(anon_id, Date, RSI..m.per.s., Trial) |>
-  arrange(anon_id, Date) |>
-  group_by(anon_id, Date) |>
-  mutate(Daily.Avg.RSI..m.per.s = mean(RSI..m.per.s.)) |>
-
 # select relevant columns for question
 # add Daily.Avg.RSI..m.per.s column
 RSI <- VALD_ForceDecks_clean %>%
@@ -875,16 +839,10 @@ RSI <- VALD_ForceDecks_clean %>%
 # Plot RSI over season by colored athlete and with a smooth
 ggplot(RSI, aes(x = Date, y = Daily.Avg.RSI..m.per.s, color = anon_id)) +
   geom_point() +
-  geom_smooth(method="lm", se=FALSE) +
+  geom_smooth(method="loess", se=FALSE) +
+  geom_smooth(aes(group = 1), color = "black", se = FALSE, method = "loess") + # Whole team smooth
   labs(title = "Athlete RSI Scores Throughout Season") +
   theme_classic()
-
-
-
-# Create load data frame containing columns relevant to load
-load <- kinexon_session_clean |>
-  filter(Date >= as.Date("2024-10-10")) |>
-  dplyr::select(anon_id, Date, Daily.Total.Accel.Load.Accum, Jump.Load) |>
 
 # Create load data frame containing columns relevant to load from this season
 # Filter out NAs
@@ -897,6 +855,7 @@ load <- kinexon_session_clean %>%
 # Look into Daily Acceleration Load for one athlete
 id_40_load <- load %>%
   filter(anon_id == "ID_40")
+
 # Plot of ID_40's Daily Accel Load
 ggplot(data = id_40_load, aes(x = Date, y = Daily.Total.Accel.Load.Accum)) +
   geom_point() +
@@ -908,16 +867,33 @@ ggplot(data = id_40_load, aes(x = Date, y = Daily.Total.Accel.Load.Accum)) +
 # Plot of all athlete's daily accel load throughout season
 ggplot(data = load, aes(x=Date, y=Daily.Total.Accel.Load.Accum, color=anon_id)) +
   geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "2024-25 Baskteball Athlete's Daily Acceleration Load") +
+  geom_smooth(method = "loess", se = FALSE) +
+  geom_smooth(aes(group = 1), color = "black", se = FALSE, method = "loess") + # Whole team smooth
+  labs(title = "Daily Acceleration Load by Athlete Over the Season") +
+  theme_classic()
+
+
+# Plot of accel load throughout season
+ggplot(data = load, aes(x=Date, y=Daily.Total.Accel.Load.Accum)) +
+  geom_point(alpha = 0.5, color="#565A5C") +
+  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C", linewidth = 1.3) +
+  labs(title = "Daily Acceleration Over the Season") +
   theme_classic()
 
 
 # Plot of all athlete's daily jump load throughout season
 ggplot(data = load, aes(x=Date, y=Jump.Load, color=anon_id)) +
   geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "2024-25 Baskteball Athlete's Daily Jump Load") +
+  geom_smooth(method = "loess", se = FALSE) + # Athlete smooths
+  geom_smooth(aes(group = 1), color = "black", se = FALSE, method = "loess") + # Whole team smooth
+  labs(title = "Daily Jump Load by Athlete Over the Season") +
+  theme_classic()
+
+# Jump Load throughout season
+ggplot(data = load, aes(x=Date, y=Jump.Load)) +
+  geom_point(alpha = 0.5, color="#565A5C") +
+  geom_smooth(method = "loess", se = FALSE, color = "#CFB87C", linewidth = 1.3) + 
+  labs(title = "Daily Jump Load Over the Season") +
   theme_classic()
 ```
 The graphs seem to show that for most athletes, RSI scores increased throughout the season, while daily acceleration load decreased and jump load about stayed the same.
@@ -1006,6 +982,7 @@ rolling_NDay_load <- rolling_NDay_load %>%
 ```
 
 ```{r merge}
+# Keep only distinct daily RSI values (get rid of all the duplicates)
 RSI_daily_avg <- RSI %>%
   distinct(anon_id, Date, Daily.Avg.RSI..m.per.s)
 
@@ -1016,9 +993,9 @@ load_and_RSI <- RSI_daily_avg %>%
     by = "anon_id",
     relationship = "many-to-many"
   ) %>%
-  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) %>% # <= includes same day. On days when RSI and accel load are measured, accel load is measured first, meaning we should include it.
-  group_by(anon_id, Date.x) |>
-  slice_max(Date.y, n = 1) |>  # Keep the most recent load data before RSI
+  filter(Date.y <= Date.x & Date.y >= Date.x - days(7)) %>% # # include load data on same day or prior 6 days
+  group_by(anon_id, Date.x) %>%
+  slice_max(Date.y, n = 1) %>%  # Keep the most recent load data prior to RSI
   ungroup() %>%
   rename(
     RSI_Date = Date.x,
@@ -1027,7 +1004,7 @@ load_and_RSI <- RSI_daily_avg %>%
   )
 
 
-# Now that only have load data for N days before a test (and that day) we rename the columns
+# Rename columns to reflect test-day-relative load
 load_and_RSI <- load_and_RSI %>% rename(
   `TD-6..Avg..Accel.Load` = Avg..7Day..Accel.Load,
   `TD-6..Total..Accel.Load` = Total..7Day..Accel.Load,
@@ -1045,43 +1022,54 @@ load_and_RSI <- load_and_RSI %>% rename(
   `TD-1..Total..Jump.Load` = Total..2Day..Jump.Load
 )
 
-# TD-6 means the load data from the last 6 days before the test day and the test day
-# (load data from the last 6 days and the test day)
-# TD-2 means the load data from the two days prior to the test day and the test day
-# TD-1 means the data from the day before the test day and data from the test day
-
+# Notes:
+# TD-6 = Test Day and 6 days prior
+# TD-2 = Test Day and 2 days prior
+# TD-1 = Test Day and 1 day prior
 ```
 
 
 ```{r Correlation}
 # Correlation Tests for each variable vs RSI
 
+# Clean names for plot
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>%
+    trimws()
+}
+
+
+# Define load metrics to test for correlation with RSI
 load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load", "TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
-# Calculate overall Pearson correlations for each variable
+# Calculate overall Pearson correlation between RSI and each load variable
 overall_corrs <- map_dfr(load_vars, ~ {
   load_and_RSI %>%
     summarize(
       r = cor(RSI, .data[[.x]], use = "complete.obs"),
       n = n()
-    ) |> 
-    mutate(variable = .x)
-})
+    ) %>%
+    mutate(variable = .x) # Add variable name as column
+}) %>%
+  mutate(name=clean_load_var_name(variable))
 
-# Basic plot (no theming)
-ggplot(overall_corrs, aes(x = reorder(variable, r), y = r)) +
+# Plot the correlation coefficients as horizontal bars
+ggplot(overall_corrs, aes(x = reorder(name, r), y = r)) +
   geom_col(fill = "#CFB87C") +
-  geom_text(aes(label = round(r, 2)), 
+  geom_text(aes(label = round(r, 2)), # Add text labels of r values
             hjust = ifelse(overall_corrs$r >= 0, -0.1, 1.1),
             size = 3) +
   coord_flip() +
   labs(title = "Correlation Between Load Metrics and RSI",
        x = "Load Metric",
        y = "Pearson Correlation (r)") +
-  scale_x_discrete(labels = function(x) gsub("\\.\\.", ": ", x)) +  # Clean names
   theme_classic()
-
-
 ```
 Jump Load seems to be more correlated and even positively correlated than acceleration load.
 
@@ -1090,24 +1078,23 @@ Jump Load seems to be more correlated and even positively correlated than accele
 # Check for multicollinearity by examining pairwise correlations
 # This helps identify redundant variables before modeling
 
-# 1. Compute correlation matrix for RSI and all training load variables
+# Compute correlation matrix for RSI and all training load variables
 cor_matrix <- cor(
-  load_and_RSI |> dplyr::select(RSI, starts_with("TD")),
-
+  load_and_RSI %>% dplyr::select(RSI, starts_with("TD")),
   use = "complete.obs"
 )
 
-# 2. Visualize the correlation matrix with numeric values
+# Visualize the correlation matrix with numeric values
 # - Dark blue/red = strong correlation
 # - Add numbers show exact correlation coefficients
 corrplot(
   cor_matrix,
   method = "color",           # Use colored tiles
   addCoef.col = "black",      # Add black text for correlation values
-  number.cex = 0.5,           # Size of the numbers
+  number.cex = 0.5,
 )
 
-# 3. Print the numeric correlation matrix, rounded to 2 decimals
+# Print the numeric correlation matrix, rounded to 2 decimals
 round(cor_matrix, 2)
 ```
 The variables that are most associated with RSI are TD-6..Avg..Jump.Load (0.26), TD-6..Total..Jump.Load (0.24), TD-2..Avg..Jump.Load (0.24), and TD-1..Avg..Jump.Load (0.21). 
@@ -1170,37 +1157,41 @@ The model with the lowest AIC is model_step which is an AIC stepwise model of th
 #### Exploring Optimal Load Zones: Average Acceleration Load
 
 ```{r Previous N Days Accel Load vs. RSI}
+# Plotting the relationship between RSI and Acceleration Load metrics at different time windows
+    # First three plots: Average accel load over 7, 3, and 2 days before an RSI test.
+    # Second three: Total accel load over 7, 3, and 2 days before an RSI test.
+
 # AVERAGE ACCEL LOAD:
 # Relationship between RSI and 7-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Accel Load",
-    x = "7-Day Avg Accel Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Average Acceleration Load",
+    x = "7-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # Relationship between RSI and 3-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Accel Load",
-    x = "3-Day Avg Accel Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Average Acceleration Load",
+    x = "3-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # Relationship between RSI and 2-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Accel Load",
-    x = "2-Day Avg Accel Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Average Acceleration Load",
+    x = "2-Day Average Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
 
@@ -1208,39 +1199,36 @@ ggplot(load_and_RSI, aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
 # TOTAL ACCEL LOAD:
 # RSI and 7-Day Total Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-6..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Total Accel Load",
-    x = "7-Day Total Accel Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Total Acceleration Load",
+    x = "7-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
-
 
 # RSI and 3-Day Total Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-2..Total..Accel.Load`, y = RSI)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Total Accel Load",
-    x = "3-Day Total Accel Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Total Acceleration Load",
+    x = "3-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
-
 
 # RSI and 2-Day Average Acceleration Load
 ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Total Accel Load",
-    x = "2-Day Total Accel Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Total Acceleration Load",
+    x = "2-Day Total Acceleration Load",
+    y = "RSI"
   ) +
   theme_classic()
-
 ```
 7-day Avg Accel Load:
   - Max at start (not much data)
@@ -1281,11 +1269,28 @@ ggplot(load_and_RSI, aes(x = `TD-1..Total..Accel.Load`, y = RSI)) +
 # Identify and plot optimal load zones for Average Acceleration load
 # This will give us zones that produce the highest average RSI scores for that time window.
 
+# Function to clean variable names for plot titles
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("Accel", "Acceleration", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>% 
+    gsub("Accel Load", "Accel Load", .) %>%
+    gsub("Jump Load", "Jump Load", .) %>%
+    trimws()
+}
+
 # Define variables to analyze
 load_vars <- c("TD-1..Avg..Accel.Load", "TD-2..Avg..Accel.Load", "TD-6..Avg..Accel.Load")
 
 # Create individual plots for each variable
 for (load_var in load_vars) {
+  
+  name <- clean_load_var_name(load_var)
   
   # Calculate optimal zone
   optimal_zone <- load_and_RSI %>%
@@ -1305,9 +1310,8 @@ for (load_var in load_vars) {
     slice(1)
   
   # Generate plot
-  # Scatter plot of RSI per time window with an "optimal load zone"
   p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
-    geom_point(alpha = 0.3, color = "#565A5C") +
+    geom_point(alpha = 0.5, color = "#565A5C") +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     geom_vline(
       xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
@@ -1318,15 +1322,15 @@ for (load_var in load_vars) {
       xmax = optimal_zone$bin_end,
       ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "#60D272") +
     labs(
-      title = paste("Optimal Zone for", load_var),
-      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+      title = paste("Optimal Zone for", name),
+      subtitle = paste(optimal_zone$bin_label, 
                       "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
-      x = "Average Acceleration Load",
+      x = pretty_name,
       y = "RSI"
     ) +
     theme_classic()
   
-    print(p)
+  print(p)
 }
 ```
 From these plots, we can confidently conclude that an "optimal" daily average acceleration load should fall between 785-835 for 2 and 3 days before a test and 815-865 for 7 days before a test. These ranges produced the highest average RSI scores for their respective windows.
@@ -1335,41 +1339,40 @@ From these plots, we can confidently conclude that an "optimal" daily average ac
 
 ```{r Previous N Days Jump Load vs. RSI}
 # Plotting the relationship between RSI and Jump Load metrics at different time windows
-# Scatterplots comparing RSI to different Jump Load windows
-    # Top three plots: Average jump load over 7, 3, and 2 days before an RSI test.
-    # Bottom three: Total jump load over 7, 3, and 2 days before an RSI test.
+    # First three plots: Average jump load over 7, 3, and 2 days before an RSI test.
+    # Second three: Total jump load over 7, 3, and 2 days before an RSI test.
 
 # AVERAGE JUMP LOADS:
 # RSI and 7-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 7-Day Avg Jump Load",
-    x = "7-Day Avg Jump Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 7-Day Average Jump Load",
+    x = "7-Day Average Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # RSI and 3-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-2..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 3-Day Avg Jump Load",
-    x = "3-Day Avg Jump Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 3-Day Average Jump Load",
+    x = "3-Day Avg Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 # RSI and 2-Day Average Jump Load
 ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
-    title = "RSI vs. 2-Day Avg Jump Load",
-    x = "2-Day Avg Jump Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    title = "RSI vs. 2-Day Average Jump Load",
+    x = "2-Day Avg Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
@@ -1377,36 +1380,36 @@ ggplot(load_and_RSI, aes(x = `TD-1..Avg..Jump.Load`, y = RSI)) +
 # TOTAL JUMP LOADS:
 # RSI and 7-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-6..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 7-Day Total Jump Load",
-    x = "7-Day Total Jump Load (TD-6 to TD)",
-    y = "RSI (m/s)"
+    x = "7-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 
 # RSI and 3-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-2..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 3-Day Total Jump Load",
-    x = "3-Day Total Jump Load (TD-2 to TD)",
-    y = "RSI (m/s)"
+    x = "3-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 
 
 # RSI and 2-Day Total Jump Load
 ggplot(load_and_RSI, aes(x = `TD-1..Total..Jump.Load`, y = RSI)) +
-  geom_point(alpha = 0.5) +
+  geom_point(alpha = 0.5, color = "#565A5C") +
   geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
   labs(
     title = "RSI vs. 2-Day Total Jump Load",
-    x = "2-Day Total Jump Load (TD-1 to TD)",
-    y = "RSI (m/s)"
+    x = "2-Day Total Jump Load",
+    y = "RSI"
   ) +
   theme_classic()
 ```
@@ -1459,11 +1462,25 @@ Each graph showed low RSI scores at moderate low load levels with an increase af
 ```{r optimal jump load zones}
 # Optimal load zones for average Jump Load
 
+# Function to clean variable names for plot titles
+clean_load_var_name <- function(var_name) {
+  var_name %>%
+    gsub("TD-6", "7-Day", .) %>%
+    gsub("TD-2", "3-Day", .) %>%
+    gsub("TD-1", "2-Day", .) %>%
+    gsub("Avg", "Average", .) %>%
+    gsub("\\.\\.", " ", .) %>%
+    gsub("\\.", " ", .) %>% 
+    trimws()
+}
+
 # Define variables to analyze
 load_vars <- c("TD-1..Avg..Jump.Load", "TD-2..Avg..Jump.Load", "TD-6..Avg..Jump.Load")
 
 # Create individual analysis and plots for each variable
 for (load_var in load_vars) {
+  
+    name <- clean_load_var_name(load_var)
   
   # Calculate optimal zone
   optimal_zone <- load_and_RSI %>%
@@ -1485,7 +1502,7 @@ for (load_var in load_vars) {
   # Generate plots
   # Scatter plot with an "optimal zone"
   p <- ggplot(load_and_RSI, aes(x = !!sym(load_var), y = RSI)) +
-    geom_point(alpha = 0.3, color = "gray50") +
+    geom_point(alpha = 0.5, color = "#565A5C") +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
     geom_vline(
       xintercept = c(optimal_zone$bin_start, optimal_zone$bin_end),
@@ -1497,8 +1514,8 @@ for (load_var in load_vars) {
       ymin = -Inf, ymax = Inf, alpha = 0.1, fill = "green"
     ) +
     labs(
-      title = paste("Optimal Zone for", load_var),
-      subtitle = paste("Highest RSI in", optimal_zone$bin_label, 
+      title = paste("Optimal Zone for", name),
+      subtitle = paste(optimal_zone$bin_label, 
                       "(Mean RSI:", round(optimal_zone$mean_RSI, 2), ")"),
       x = "Average Jump Load",
       y = "RSI"
@@ -1507,15 +1524,14 @@ for (load_var in load_vars) {
   
   print(p)
 }
-
 ```
 Jump load was a little more non consistent than acceleration load. Based on our calculations and visualizations we were not able to find conclusive evidence that supports optimal jump load zones.
 
 
 
 ```{r RSI vs. 7 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
-# 7-Day
+# Plot for each athlete that shows the relationship between RSI and average 7-Day acceleration load
+
 unique_ids <- unique(load_and_RSI$anon_id)
 
 for (id in unique_ids) {
@@ -1523,24 +1539,24 @@ for (id in unique_ids) {
               aes(x = `TD-6..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-    labs(title = paste("RSI vs. Average Acceleration Load (7-Day):", id),
-         x = "Average Acceleration Load",
+    labs(title = paste("RSI vs. Average 7-Day Acceleration Load:", id),
+         x = "Average 7-Day Acceleration Load",
          y = "RSI")
    print(p)
    
 }
 ```
+
 ```{r RSI vs. 3 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
-# 3-Day
+# Plot for each athlete that shows the relationship between RSI and average 3-day acceleration load
 
 for (id in unique_ids) {
   p <- ggplot(filter(load_and_RSI, anon_id == id),
               aes(x = `TD-2..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-    labs(title = paste("RSI vs. Average Acceleration Load (3-Day):", id),
-         x = "Average Acceleration Load",
+    labs(title = paste("RSI vs. Average 3-Day Acceleration Load:", id),
+         x = "Average 3-Day Acceleration Load",
          y = "RSI")
    print(p)
    
@@ -1549,16 +1565,15 @@ for (id in unique_ids) {
 
 
 ```{r RSI vs. 2 day Average Acceleration Load per Athlete}
-# Create a plot for each athlete that shows the relationship between RSI and average acceleration load
-# 2-Day
+#  Plot for each athlete that shows the relationship between RSI and average 2-Day acceleration load
 
 for (id in unique_ids) {
   p <- ggplot(filter(load_and_RSI, anon_id == id),
               aes(x = `TD-1..Avg..Accel.Load`, y = RSI)) +
     geom_point() +
     geom_smooth(method = "loess", se = FALSE, color = "#CFB87C") +
-    labs(title = paste("RSI vs. Average Acceleration Load (2-Day):", id),
-         x = "Average Acceleration Load",
+    labs(title = paste("RSI vs. Average 2-Day Acceleration Load:", id),
+         x = "Average 2-Day Acceleration Load",
          y = "RSI")
    print(p)
    
@@ -1568,7 +1583,7 @@ for (id in unique_ids) {
 
 
 ```{r Per Athlete Accel Load Correlations}
-# Per athlete accel load correlations with RSI
+# Per athlete average and total acceleration load correlations with RSI
 
 # ACCEL LOAD:
 # Average 7 day accel load
@@ -1587,7 +1602,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 7-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 7-Day Average Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") + 
   theme_classic()
@@ -1609,7 +1624,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 7-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 7-Day Total Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1632,7 +1647,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 3-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 3-Day Average Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1654,7 +1669,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 3-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 3-Day Total Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1677,7 +1692,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 2-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 2-Day Average Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1699,7 +1714,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 2-Day Accel Load and RSI",
+  labs(title = "Per-Athlete Correlation: 2-Day Average Acceleration Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1708,6 +1723,8 @@ ID_64 seems to have a moderatley strong negative correlation between acceleratio
 
 
 ```{r Per Athlete Jump Load Correlations}
+# Per athlete average and total jump load correlations with RSI
+
 # JUMP LOAD
 # Average 7 day jump load
 per_athlete_corrs_avg <- load_and_RSI %>%
@@ -1725,7 +1742,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 7-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 7-Day Average Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1747,7 +1764,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 7-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 7-Day Total Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1770,7 +1787,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 3-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 3-Day Average Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1792,7 +1809,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 3-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 3-Day Total Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1815,7 +1832,7 @@ ggplot(per_athlete_corrs_avg, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Avg 2-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 2-Day Average Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1837,7 +1854,7 @@ ggplot(per_athlete_corrs_total, aes(x = reorder(anon_id, r), y = r)) +
               size = 3.2,
               color = "#000000") +
   coord_flip() +
-  labs(title = "Per Athlete Correlation Between Total 2-Day Jump Load and RSI",
+  labs(title = "Per-Athlete Correlation: 2-Day Total Jump Load vs. RSI",
        x = "Athlete",
        y = "Correlation (r)") +
   theme_classic()
@@ -1865,9 +1882,7 @@ VALD_ForceDecks_clean <- VALD_ForceDecks_clean %>%
 # Boxplot showing RSI distribution for each athlete
 ggplot(VALD_ForceDecks_clean, aes(anon_id, RSI..m.per.s.)) +
   geom_boxplot(color = "#CFB87C") +
-  labs(title = "RSI Variability by Athlete", 
-       y="RSI (m/s)",
-       x="Player ID") +
+  labs(title = "RSI Variability by Athlete") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   theme_classic()
 
@@ -1899,12 +1914,8 @@ ggplot(load_and_RSI, aes(x = RSI_Date, y = RSI)) +
 kendall_cor = cor(VALD_ForceDecks_clean$X, VALD_ForceDecks_clean$Team.Average.RSI..m.per.s., method = "kendall")*-1
 ggplot(data=VALD_ForceDecks_clean, aes(x=Date, y=Player.Average.RSI..m.per.s.)) +
   geom_point() +
-  geom_smooth(method="lm", color="#CFB87C", se=FALSE) +
-  labs(title="RSI Measurements Throughout 2024-2025 Season",
-       x="Date",
-       y="RSI (m/s)") +
-  theme_classic()
-  
+  geom_smooth(method="lm") +
+  labs(title=kendall_cor)
 ```
 
 ```{r}
@@ -1989,10 +2000,8 @@ for(i in 1:11){
 #light red means point is below 2 standard deviations from mean
 ggplot(data=VALD_ForceDecks_clean, aes(x=Date, Player.Average.RSI..m.per.s.)) +
   geom_point(color = ifelse(VALD_ForceDecks_clean$Player.Above.2.SD == 1, "palegreen", ifelse(VALD_ForceDecks_clean$Player.Below.2.SD == 1, "red", ifelse(VALD_ForceDecks_clean$Player.Below.1.SD == 1, "red4", ifelse(VALD_ForceDecks_clean$Player.Above.1.SD == 1, "palegreen4", "grey80")))), alpha = 0.4) +
-  labs(title = "Significant RSI Measurements Throughout the Season",
-       x="Date",
-       y="RSI (m/s)") +
-  theme_classic()
+  labs(title = "Significant RSI Measurements Throughout the Season") +
+  theme_minimal()
 ```
 This plot shows each player's measured RSI throughout the season. Points that are colored gray are points where the player did not have a significant difference in their RSI from their mean RSI throughout the season. Dark green dots show RSI measurements that are above 1 standard deviation for each player and light green dots are RSI measurements that are above 2 standard deviations for each player. Along the same lines, dark red dots shown points in which the player had an RSI below 1 standard deviation from their RSI distribution and light red dots show points in which the player's measured RSI is below 2 standard deviations of their RSI distribution. 
 One interesting thing about this plot is that there are no measurements that are below even 1 standard deviation for any player after February starts. If anything, there seems to be a higher concentration of RSI measurements that are at least above 1 standard deviation from the mean in the last 5 measurements of the season, after February starts than in the rest of the season. 
@@ -2010,8 +2019,7 @@ for(i in 1:11){
 p <- ggplot(data=VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],], aes(x=Date, Player.Average.RSI..m.per.s.)) +
   geom_point(color = ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.2.SD == 1, "palegreen", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.2.SD == 1, "red", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Below.1.SD == 1, "red4", ifelse(VALD_ForceDecks_clean[VALD_ForceDecks_clean$anon_id == IDs[i],]$Player.Above.1.SD == 1, "palegreen4", "grey70"))))) +
   ylim(0.7311404, 2.963925) +
-  labs(title = "Significant Player RSI Measurements for 2024-2025 Season", subtitle = IDs[i],
-       y="RSI (m/s)") +
+  labs(title = "Measured RSI Values Throughout the Season and Their Significance", subtitle = IDs[i]) +
   theme_minimal()
 
 print(p)
@@ -2050,8 +2058,8 @@ ggplot(data=test, aes(x=Date)) +
   geom_col(aes(y=Num.Above.2SD), fill = "palegreen") +
   ylim(0,7) +
   labs(title = "Number of Players Above Their Mean Season RSI Measurement",
-       y="Count Above Mean RSI Measurement") +
-  theme_classic()
+       y="Number Above Mean RSI Measurement") +
+  theme_minimal()
 
 #plotting the number of players that had an RSI measurement at least 2 SD below their season mean with date on the x axis in a bar chart
 ggplot(data=test, aes(x=Date)) +
@@ -2059,8 +2067,8 @@ ggplot(data=test, aes(x=Date)) +
   geom_col(aes(y=Num.Below.2SD), fill = "red") +
   ylim(0,7)+
   labs(title = "Number of Players Below Their Mean Season RSI Measurement",
-       y="Count Below Mean RSI Measurement") +
-  theme_classic()
+       y="Number Below Mean RSI Measurement") +
+  theme_minimal()
 ```
 From the plots above, we can see that there are two general parts of the season in which the team has more frequent drops in RSI and the team has more frequent gains in RSI. These plots make it easy to see that the team had a lot more frequent drops in RSI in the beginning of the season than at the end of the season. In fact, the last major drop for any player on the team happened at the end of January and there are no more drops for the rest of the season. With this, we see that RSI gains are not as common throughout the beginning of the season. We only see one or two players that have an RSI measurement above one or two standard deviations above their mean until February. It is only once February starts that we see an increase in the number of players that have an RSI at least one standard deviation above their mean. 
 
@@ -2112,11 +2120,10 @@ print(r)
 Looking at the plots above, there does not seem to be a clear relationship between RSI measurements and loading summarized by any length (2,3,7 days). This suggests that there may have been some other change in training that had a positive impact on RSI measurements for the entire team. This may be due to something that is not loading related. Blake said it might be more targeted lifts. 
 
 
-```{r Looking at means and SDs in RSI for each player}
-#group by and summarize to see each player's mean and sd in RSI
+```{r Looking at each player mean and SD of RSI}
+#grouping by each player id and making the statistics for each player
 VALD_ForceDecks_clean %>%
   group_by(anon_id) %>%
   summarize(mean_RSI = mean(Player.Average.RSI..m.per.s.),
             SD_RSI = sd(Player.Average.RSI..m.per.s.))
-
 ```
