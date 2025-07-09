@@ -1,6 +1,5 @@
 Project 1 Summary
 ================
-Cecilia Gonzales
 2025-07-01
 
 ## Project Contributors
