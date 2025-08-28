@@ -1,6 +1,6 @@
-# Project 1 Summary
+# RSI and Performance in Men's Basketball
 
-2025-07-01
+link to video presentation: https://www.youtube.com/watch?v=RpBVR0ZThZc&list=PLkBtKXV74kfnFd-2O_5z6anlQN4wRFwT9&index=3 
 
 ## Project Contributors
 
