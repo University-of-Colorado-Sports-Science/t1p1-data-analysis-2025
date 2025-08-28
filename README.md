@@ -1,6 +1,6 @@
 # RSI and Performance in Men's Basketball
 
-video presentation link: 
+Video presentation link: 
 
 https://www.youtube.com/watch?v=RpBVR0ZThZc&list=PLkBtKXV74kfnFd-2O_5z6anlQN4wRFwT9&index=3 
 
